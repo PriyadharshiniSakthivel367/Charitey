@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "400013147984",
+    "project_id": "charitey-97f31",
+    "storage_bucket": "charitey-97f31.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:400013147984:android:1bd105808bc78083833655",
+        "android_client_info": {
+          "package_name": "com.example.charity_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "400013147984-fcvqsm2imuldoqn683itvvrif83f34a6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBdmAN6V1bYBaSuEOB5CTtb13mzL36IO64"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "400013147984-fcvqsm2imuldoqn683itvvrif83f34a6.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
