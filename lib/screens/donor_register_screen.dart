@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import 'donor_login_screen.dart';
 import 'home_screen.dart';
+import 'profile_setup_screen.dart';
 
 class DonorRegisterScreen extends StatefulWidget {
   const DonorRegisterScreen({super.key});
@@ -13,8 +15,6 @@ class DonorRegisterScreen extends StatefulWidget {
 class _DonorRegisterScreenState extends State<DonorRegisterScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _locationController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
   // The requested Dusty Rose Theme Color
@@ -24,25 +24,27 @@ class _DonorRegisterScreenState extends State<DonorRegisterScreen> {
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
-    _phoneController.dispose();
-    _locationController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  // --- LOGIC REMAINS EXACTLY THE SAME ---
   void _register() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
     String name = _nameController.text.trim();
     String email = _emailController.text.trim();
     String password = _passwordController.text.trim();
-    String phone = _phoneController.text.trim();
-    String location = _locationController.text.trim();
 
-    if (name.isEmpty || email.isEmpty || password.isEmpty || phone.isEmpty || location.isEmpty) {
+    if (name.isEmpty || email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill all fields')),
+        const SnackBar(content: Text('Please fill all fields to sign up.')),
+      );
+      return;
+    }
+
+    if (password.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password must be at least 6 characters long.')),
       );
       return;
     }
@@ -51,9 +53,9 @@ class _DonorRegisterScreenState extends State<DonorRegisterScreen> {
       name: name,
       email: email,
       password: password,
-      phone: phone,
+      phone: '', 
+      location: '',
       role: 'user', 
-      location: location,
     );
 
     if (!context.mounted) return;
@@ -61,12 +63,12 @@ class _DonorRegisterScreenState extends State<DonorRegisterScreen> {
     if (success) {
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => const ProfileSetupScreen(role: 'user')),
         (route) => false,
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registration failed.')),
+        const SnackBar(content: Text('Registration failed. Email might already be in use.')),
       );
     }
   }
@@ -76,7 +78,7 @@ class _DonorRegisterScreenState extends State<DonorRegisterScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA), // Soft off-white background
+      backgroundColor: const Color(0xFFF8F9FA),
       extendBodyBehindAppBar: true, 
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -126,7 +128,7 @@ class _DonorRegisterScreenState extends State<DonorRegisterScreen> {
             ),
           ),
 
-          // --- Main Content (Locked to Single View) ---
+          // --- Main Content ---
           SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -134,35 +136,30 @@ class _DonorRegisterScreenState extends State<DonorRegisterScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 30.0),
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight, // Forces content to fill the exact screen height
+                      minHeight: constraints.maxHeight, 
                     ),
                     child: IntrinsicHeight(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
-                        mainAxisAlignment: MainAxisAlignment.center, // Centers everything vertically
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Spacer(flex: 1), // Gentle push from the top
+                          const Spacer(flex: 1), 
                           
-                          // Title Area matching the design
                           const Text(
                             'Sign Up',
                             style: TextStyle(fontSize: 42, fontWeight: FontWeight.bold, color: Color(0xFF2D3142)),
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            "Hello! let's join with us",
+                            "Create an account to start giving.",
                             style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
                           ),
                           const SizedBox(height: 30),
                           
-                          _buildInputField(hint: 'Donor Name', icon: Icons.person_outline_rounded, controller: _nameController),
-                          const SizedBox(height: 12),
-                          _buildInputField(hint: 'Email', icon: Icons.email_outlined, controller: _emailController, keyboardType: TextInputType.emailAddress),
-                          const SizedBox(height: 12),
-                          _buildInputField(hint: 'Phone Number', icon: Icons.phone_outlined, controller: _phoneController, keyboardType: TextInputType.phone),
-                          const SizedBox(height: 12),
-                          _buildInputField(hint: 'Location (City, Area)', icon: Icons.location_on_outlined, controller: _locationController),
-                          const SizedBox(height: 12),
+                          _buildInputField(hint: 'Full Name', icon: Icons.person_outline_rounded, controller: _nameController),
+                          const SizedBox(height: 16),
+                          _buildInputField(hint: 'Email Address', icon: Icons.email_outlined, controller: _emailController, keyboardType: TextInputType.emailAddress),
+                          const SizedBox(height: 16),
                           _buildInputField(hint: 'Create Password', icon: Icons.lock_outline_rounded, controller: _passwordController, isPassword: true),
                           const SizedBox(height: 30),
 
@@ -199,7 +196,7 @@ class _DonorRegisterScreenState extends State<DonorRegisterScreen> {
                           ),
                           const SizedBox(height: 24),
 
-                          // REAL UI GOOGLE BUTTON
+                          // GOOGLE BUTTON
                           ElevatedButton(
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.white,
@@ -212,18 +209,18 @@ class _DonorRegisterScreenState extends State<DonorRegisterScreen> {
                               ),
                             ),
                             onPressed: () async {
-                              bool success = await authProvider.signInWithGoogle();
+                              bool success = await authProvider.signInWithGoogle(role: 'user');
                               if (!context.mounted) return;
 
                               if (success) {
                                 Navigator.pushAndRemoveUntil(
                                   context,
-                                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                                  MaterialPageRoute(builder: (_) => const ProfileSetupScreen(role: 'user')),
                                   (route) => false,
                                 );
                               } else {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text("Google sign up failed")),
+                                  const SnackBar(content: Text("Google sign up failed.")),
                                 );
                               }
                             },
@@ -244,18 +241,23 @@ class _DonorRegisterScreenState extends State<DonorRegisterScreen> {
                             ),
                           ),
                           
-                          const Spacer(flex: 2), // Pushes the bottom link down
+                          const Spacer(flex: 2), 
 
                           // BOTTOM LOGIN LINK
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
-                                "You already have an account? ",
+                                "Already have an account? ",
                                 style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
                               ),
                               GestureDetector(
-                                onTap: () => Navigator.pop(context),
+                                onTap: () {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const DonorLoginScreen()),
+                                  );
+                                },
                                 child: Text(
                                   'Log in',
                                   style: TextStyle(fontSize: 15, color: themeColor, fontWeight: FontWeight.bold),
@@ -277,7 +279,6 @@ class _DonorRegisterScreenState extends State<DonorRegisterScreen> {
     );
   }
 
-  // --- FLOATING TEXT FIELD UI ---
   Widget _buildInputField({required String hint, required IconData icon, required TextEditingController controller, bool isPassword = false, TextInputType keyboardType = TextInputType.text}) {
     return Container(
       decoration: BoxDecoration(

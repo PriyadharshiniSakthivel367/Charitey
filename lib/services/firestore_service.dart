@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/ngo_listing_model.dart';
 import '../models/donation_model.dart';
 import '../models/volunteer_request_model.dart';
+import '../models/notification_model.dart'; // Added this import
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -123,4 +124,45 @@ class FirestoreService {
           .toList();
     });
   }
-}
+
+  // ==========================================
+  // --- IN-APP NOTIFICATION LOGIC (NEW) ---
+  // ==========================================
+  
+  // 1. Send a notification to the database
+  Future<void> sendNotification(NotificationModel notification) async {
+    try {
+      await _firestore
+          .collection('notifications')
+          .doc(notification.id)
+          .set(notification.toMap());
+    } catch (e) {
+      print("Error sending notification: $e");
+    }
+  }
+
+ // 2. Listen for new notifications for a specific user (NGO)
+  Stream<List<NotificationModel>> getUserNotifications(String userId) {
+    return _firestore
+        .collection('notifications')
+        .where('receiverId', isEqualTo: userId)
+        // 🔥 REMOVED .orderBy to fix the Firestore Index error!
+        .snapshots()
+        .map((snapshot) {
+          // Convert the raw data into our Notification models
+          var docs = snapshot.docs
+              .map((doc) => NotificationModel.fromMap(doc.data(), doc.id))
+              .toList();
+              
+          // 🔥 Sort them manually in the app (newest first)
+          docs.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          
+          return docs;
+        });
+  }
+
+  // 3. Mark a notification as read when clicked
+  Future<void> markNotificationAsRead(String notificationId) async {
+    await _firestore.collection('notifications').doc(notificationId).update({'isRead': true});
+  }
+} // Make sure this closing bracket matches the end of your FirestoreService class!

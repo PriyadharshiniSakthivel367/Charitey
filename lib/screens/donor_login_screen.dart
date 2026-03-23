@@ -25,7 +25,6 @@ class _DonorLoginScreenState extends State<DonorLoginScreen> {
     super.dispose();
   }
 
-  // --- LOGIC REMAINS EXACTLY THE SAME ---
   void _login() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
@@ -34,7 +33,7 @@ class _DonorLoginScreenState extends State<DonorLoginScreen> {
 
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill all fields')),
+        const SnackBar(content: Text('Please fill in both email and password.')),
       );
       return;
     }
@@ -44,6 +43,7 @@ class _DonorLoginScreenState extends State<DonorLoginScreen> {
     if (!context.mounted) return;
 
     if (success) {
+      // Returning users go straight to the Home Screen
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const HomeScreen()),
@@ -51,7 +51,7 @@ class _DonorLoginScreenState extends State<DonorLoginScreen> {
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login failed. Check your credentials.')),
+        const SnackBar(content: Text('Login failed. Please check your credentials.')),
       );
     }
   }
@@ -62,7 +62,7 @@ class _DonorLoginScreenState extends State<DonorLoginScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA), // Soft off-white background
-      extendBodyBehindAppBar: true, // Lets the background shapes flow under the app bar
+      extendBodyBehindAppBar: true, 
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -111,7 +111,7 @@ class _DonorLoginScreenState extends State<DonorLoginScreen> {
             ),
           ),
 
-          // --- Main Content (Locked to Single View) ---
+          // --- Main Content ---
           SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -119,24 +119,24 @@ class _DonorLoginScreenState extends State<DonorLoginScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 30.0),
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight, // Forces content to fill the exact screen height
+                      minHeight: constraints.maxHeight, 
                     ),
                     child: IntrinsicHeight(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
-                        mainAxisAlignment: MainAxisAlignment.center, // Centers everything vertically
+                        mainAxisAlignment: MainAxisAlignment.center, 
                         children: [
-                          const Spacer(flex: 2), // Pushes content down smoothly
+                          const Spacer(flex: 2), 
                           
-                          // Title Area matching the design
+                          // Title Area
                           const Text(
                             'Log In',
                             style: TextStyle(fontSize: 42, fontWeight: FontWeight.bold, color: Color(0xFF2D3142)),
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            "Hello! let's join with us",
-                            style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+                            "Welcome back! Let's continue making an impact.",
+                            style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
                           ),
                           const SizedBox(height: 40),
                           
@@ -149,10 +149,10 @@ class _DonorLoginScreenState extends State<DonorLoginScreen> {
                             alignment: Alignment.centerRight,
                             child: TextButton(
                               onPressed: () {
-                                // Forgot password logic
+                                // Forgot password logic placeholder
                               },
                               child: Text(
-                                'Forget Password ?',
+                                'Forget Password?',
                                 style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w600, fontSize: 14),
                               ),
                             ),
@@ -192,7 +192,7 @@ class _DonorLoginScreenState extends State<DonorLoginScreen> {
                           ),
                           const SizedBox(height: 24),
 
-                          // REAL UI GOOGLE BUTTON
+                          // GOOGLE BUTTON
                           ElevatedButton(
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.white,
@@ -216,7 +216,7 @@ class _DonorLoginScreenState extends State<DonorLoginScreen> {
                                 );
                               } else {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text("Google sign in failed.")),
+                                  const SnackBar(content: Text("Google sign in failed. Please try again.")),
                                 );
                               }
                             },
@@ -237,7 +237,7 @@ class _DonorLoginScreenState extends State<DonorLoginScreen> {
                             ),
                           ),
                           
-                          const Spacer(flex: 3), // Pushes the bottom link down
+                          const Spacer(flex: 3), 
 
                           // BOTTOM REGISTER LINK
                           Row(
@@ -249,7 +249,7 @@ class _DonorLoginScreenState extends State<DonorLoginScreen> {
                               ),
                               GestureDetector(
                                 onTap: () {
-                                  Navigator.push(
+                                  Navigator.pushReplacement(
                                     context,
                                     MaterialPageRoute(builder: (context) => const DonorRegisterScreen()),
                                   );

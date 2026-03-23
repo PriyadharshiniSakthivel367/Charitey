@@ -34,7 +34,7 @@ class _TravelAgencyLoginScreenState extends State<TravelAgencyLoginScreen> {
 
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill all fields')),
+        const SnackBar(content: Text('Please fill in both email and password.')),
       );
       return;
     }
@@ -44,6 +44,7 @@ class _TravelAgencyLoginScreenState extends State<TravelAgencyLoginScreen> {
     if (!context.mounted) return;
 
     if (success) {
+      // Returning users go straight to the Home Screen
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const HomeScreen()),
@@ -51,7 +52,7 @@ class _TravelAgencyLoginScreenState extends State<TravelAgencyLoginScreen> {
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login failed. Check your credentials.')),
+        const SnackBar(content: Text('Login failed. Please check your credentials.')),
       );
     }
   }
@@ -119,14 +120,14 @@ class _TravelAgencyLoginScreenState extends State<TravelAgencyLoginScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 30.0),
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight, // Forces content to fill the exact screen height
+                      minHeight: constraints.maxHeight, 
                     ),
                     child: IntrinsicHeight(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
-                        mainAxisAlignment: MainAxisAlignment.center, // Centers vertically
+                        mainAxisAlignment: MainAxisAlignment.center, 
                         children: [
-                          const Spacer(flex: 2), // Pushes content down smoothly
+                          const Spacer(flex: 2), 
                           
                           // Title Area
                           const Text(
@@ -149,10 +150,10 @@ class _TravelAgencyLoginScreenState extends State<TravelAgencyLoginScreen> {
                             alignment: Alignment.centerRight,
                             child: TextButton(
                               onPressed: () {
-                                // Forgot password logic
+                                // Forgot password logic placeholder
                               },
                               child: Text(
-                                'Forget Password ?',
+                                'Forget Password?',
                                 style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w600, fontSize: 14),
                               ),
                             ),
@@ -216,7 +217,7 @@ class _TravelAgencyLoginScreenState extends State<TravelAgencyLoginScreen> {
                                 );
                               } else {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text("Google sign in failed.")),
+                                  const SnackBar(content: Text("Google sign in failed. Please try again.")),
                                 );
                               }
                             },
@@ -237,7 +238,7 @@ class _TravelAgencyLoginScreenState extends State<TravelAgencyLoginScreen> {
                             ),
                           ),
                           
-                          const Spacer(flex: 3), // Pushes the bottom link down
+                          const Spacer(flex: 3), 
 
                           // BOTTOM REGISTER LINK
                           Row(
@@ -249,7 +250,7 @@ class _TravelAgencyLoginScreenState extends State<TravelAgencyLoginScreen> {
                               ),
                               GestureDetector(
                                 onTap: () {
-                                  Navigator.push(
+                                  Navigator.pushReplacement(
                                     context,
                                     MaterialPageRoute(builder: (context) => const TravelAgencyRegisterScreen()),
                                   );

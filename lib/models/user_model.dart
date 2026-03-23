@@ -3,9 +3,10 @@ class UserModel {
   final String name;
   final String phone;
   final String email;
-  final String role; // user / ngo / volunteer
+  final String role; // user / ngo / volunteer / travel_agency
   final String location;
   final String profileImage;
+  final String license; // <-- ADDED THIS FOR YOUR FRIEND'S CODE
   final DateTime createdAt;
   final int donationsCount;
   final int postsCount;
@@ -18,6 +19,7 @@ class UserModel {
     required this.role,
     required this.location,
     required this.profileImage,
+    this.license = '', // <-- DEFAULT VALUE
     required this.createdAt,
     this.donationsCount = 0,
     this.postsCount = 0,
@@ -32,6 +34,7 @@ class UserModel {
       'role': role,
       'location': location,
       'profileImage': profileImage,
+      'license': license, // <-- SAVES TO FIREBASE
       'createdAt': createdAt.toIso8601String(),
       'donationsCount': donationsCount,
       'postsCount': postsCount,
@@ -47,6 +50,7 @@ class UserModel {
       role: map['role'] ?? 'user',
       location: map['location'] ?? '',
       profileImage: map['profileImage'] ?? '',
+      license: map['license'] ?? '', // <-- READS FROM FIREBASE
       createdAt: map['createdAt'] != null
           ? DateTime.parse(map['createdAt'])
           : DateTime.now(),

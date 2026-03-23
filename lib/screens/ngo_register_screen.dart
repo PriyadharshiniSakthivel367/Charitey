@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
-import 'home_screen.dart'; 
+import 'ngo_login_screen.dart';
+import 'home_screen.dart';
+import 'profile_setup_screen.dart';
 
 class NgoRegisterScreen extends StatefulWidget {
   const NgoRegisterScreen({super.key});
@@ -13,39 +15,35 @@ class NgoRegisterScreen extends StatefulWidget {
 class _NgoRegisterScreenState extends State<NgoRegisterScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _locationController = TextEditingController();
-  final TextEditingController _licenseController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
-  // The Dusty Rose Theme Color
   final Color themeColor = const Color(0xFFB56F76);
 
   @override
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
-    _phoneController.dispose();
-    _locationController.dispose();
-    _licenseController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  // --- LOGIC REMAINS EXACTLY THE SAME ---
   void _register() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
     String name = _nameController.text.trim();
     String email = _emailController.text.trim();
     String password = _passwordController.text.trim();
-    String phone = _phoneController.text.trim();
-    String location = _locationController.text.trim();
-    String license = _licenseController.text.trim();
 
-    if (name.isEmpty || email.isEmpty || password.isEmpty || phone.isEmpty || location.isEmpty || license.isEmpty) {
+    if (name.isEmpty || email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill all fields including License ID')),
+        const SnackBar(content: Text('Please fill all fields to sign up.')),
+      );
+      return;
+    }
+
+    if (password.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password must be at least 6 characters long.')),
       );
       return;
     }
@@ -54,9 +52,9 @@ class _NgoRegisterScreenState extends State<NgoRegisterScreen> {
       name: name,
       email: email,
       password: password,
-      phone: phone,
-      role: 'ngo', 
-      location: location,
+      phone: '',
+      location: '',
+      role: 'ngo',
     );
 
     if (!context.mounted) return;
@@ -64,7 +62,7 @@ class _NgoRegisterScreenState extends State<NgoRegisterScreen> {
     if (success) {
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => const ProfileSetupScreen(role: 'ngo')),
         (route) => false,
       );
     } else {
@@ -79,19 +77,18 @@ class _NgoRegisterScreenState extends State<NgoRegisterScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA), // Soft off-white background
-      extendBodyBehindAppBar: true, 
+      backgroundColor: const Color(0xFFF8F9FA),
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black87),
-          onPressed: () => Navigator.pop(context), 
+          onPressed: () => Navigator.pop(context),
         ),
       ),
       body: Stack(
         children: [
-          // --- Background Decorative Blobs ---
           Positioned(
             top: -80,
             right: -60,
@@ -129,7 +126,6 @@ class _NgoRegisterScreenState extends State<NgoRegisterScreen> {
             ),
           ),
 
-          // --- Main Content (Locked to Single View) ---
           SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -137,41 +133,33 @@ class _NgoRegisterScreenState extends State<NgoRegisterScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 30.0),
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight, // Forces content to fill the exact screen height
+                      minHeight: constraints.maxHeight,
                     ),
                     child: IntrinsicHeight(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
-                        mainAxisAlignment: MainAxisAlignment.center, // Centers everything vertically
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Spacer(flex: 1), // Gentle push from the top
+                          const Spacer(flex: 1),
                           
-                          // Title Area
                           const Text(
                             'NGO Sign Up',
                             style: TextStyle(fontSize: 42, fontWeight: FontWeight.bold, color: Color(0xFF2D3142)),
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            "Giving from Heart",
+                            "Create an account to start receiving support.",
                             style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
                           ),
                           const SizedBox(height: 30),
                           
                           _buildInputField(hint: 'NGO Name', icon: Icons.domain_rounded, controller: _nameController),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 16),
                           _buildInputField(hint: 'E-mail ID', icon: Icons.email_outlined, controller: _emailController, keyboardType: TextInputType.emailAddress),
-                          const SizedBox(height: 12),
-                          _buildInputField(hint: 'Phone Number', icon: Icons.phone_outlined, controller: _phoneController, keyboardType: TextInputType.phone),
-                          const SizedBox(height: 12),
-                          _buildInputField(hint: 'Location (City, Area)', icon: Icons.location_on_outlined, controller: _locationController),
-                          const SizedBox(height: 12),
-                          _buildInputField(hint: 'NGO License ID / Reg No.', icon: Icons.verified_outlined, controller: _licenseController), 
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 16),
                           _buildInputField(hint: 'Create Password', icon: Icons.lock_outline_rounded, controller: _passwordController, isPassword: true),
                           const SizedBox(height: 30),
 
-                          // MAIN SIGN UP BUTTON
                           ElevatedButton(
                             onPressed: authProvider.isLoading ? null : _register,
                             style: ElevatedButton.styleFrom(
@@ -183,7 +171,7 @@ class _NgoRegisterScreenState extends State<NgoRegisterScreen> {
                                 borderRadius: BorderRadius.circular(30),
                               ),
                             ),
-                            child: authProvider.isLoading 
+                            child: authProvider.isLoading
                                 ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
                                 : const Text(
                                     'SIGN UP',
@@ -204,7 +192,6 @@ class _NgoRegisterScreenState extends State<NgoRegisterScreen> {
                           ),
                           const SizedBox(height: 24),
 
-                          // REAL UI GOOGLE BUTTON
                           ElevatedButton(
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.white,
@@ -217,14 +204,13 @@ class _NgoRegisterScreenState extends State<NgoRegisterScreen> {
                               ),
                             ),
                             onPressed: () async {
-                              bool success = await authProvider.signInWithGoogle();
-                              
+                              bool success = await authProvider.signInWithGoogle(role: 'ngo');
                               if (!context.mounted) return;
 
                               if (success) {
                                 Navigator.pushAndRemoveUntil(
                                   context,
-                                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                                  MaterialPageRoute(builder: (_) => const ProfileSetupScreen(role: 'ngo')),
                                   (route) => false,
                                 );
                               } else {
@@ -250,18 +236,22 @@ class _NgoRegisterScreenState extends State<NgoRegisterScreen> {
                             ),
                           ),
                           
-                          const Spacer(flex: 2), // Pushes the bottom link down
+                          const Spacer(flex: 2),
 
-                          // BOTTOM LOGIN LINK
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
-                                "You already have an account? ",
+                                "Already have an account? ",
                                 style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
                               ),
                               GestureDetector(
-                                onTap: () => Navigator.pop(context),
+                                onTap: () {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const NgoLoginScreen()),
+                                  );
+                                },
                                 child: Text(
                                   'Log in',
                                   style: TextStyle(fontSize: 15, color: themeColor, fontWeight: FontWeight.bold),
@@ -283,7 +273,6 @@ class _NgoRegisterScreenState extends State<NgoRegisterScreen> {
     );
   }
 
-  // --- FLOATING TEXT FIELD UI ---
   Widget _buildInputField({required String hint, required IconData icon, required TextEditingController controller, bool isPassword = false, TextInputType keyboardType = TextInputType.text}) {
     return Container(
       decoration: BoxDecoration(

@@ -26,7 +26,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
     'https://i.postimg.cc/VLY63bnq/kowsi5.jpg',
     'https://i.postimg.cc/qqQkkjyy/kowsi6.jpg',
     'https://i.postimg.cc/qv39w1qY/kowsi7.jpg',
-    'https://i.postimg.cc/rm838cJn/kowsi8.jpg',
+    'https://i.postimg.cc/d1y5TPsW/kowsi9.png',
   ];
 
   @override
