@@ -42,25 +42,30 @@ class NotificationsScreen extends StatelessWidget {
               var data = snapshot.data!.data() as Map<String, dynamic>;
               
               // --- SMART LABEL LOGIC ---
-              // If it's a donation offer, the sender is ALWAYS a Donor.
-              // If it's a message, we look at the 'senderRole' saved in the database.
-              // (If senderRole isn't saved, we default to assuming the sender is the Donor, since NGOs usually reply).
-              // --- SMART LABEL LOGIC ---
               bool isSenderNGO = false;
+              bool isSenderTravelAgency = false;
+              
               if (!isDonationOffer) {
                  isSenderNGO = data['senderRole'] == 'ngo';
+                 isSenderTravelAgency = data['senderRole'] == 'travel_agency'; // <-- Added check
               }
 
-              String nameLabel = isSenderNGO ? "Organization Name" : "Donor Name";
-              // --- THIS IS THE FIX YOU REQUESTED ---
-              String locationLabel = isSenderNGO ? "Organization Location" : "Donor Location"; 
+              // Determine correct labels based on role
+              String nameLabel = "Donor Name";
+              String locationLabel = "Donor Location";
+              
+              if (isSenderNGO) {
+                nameLabel = "Organization Name";
+                locationLabel = "Organization Location";
+              } else if (isSenderTravelAgency) {
+                nameLabel = "Travel Agency Name";
+                locationLabel = "Agency Location";
+              }
 
               // Map the actual data
               String contactName = isDonationOffer ? (data['donorName'] ?? notif.senderName) : notif.senderName;
               String contactPhone = isDonationOffer ? (data['donorPhone'] ?? 'Unknown') : (data['senderPhone'] ?? 'Unknown');
               String contactLocation = isDonationOffer ? (data['donorLocation'] ?? 'Unknown') : (data['senderLocation'] ?? 'Unknown');
-              
-              // (The rest of the column code remains exactly the same)
               
               return Column(
                 mainAxisSize: MainAxisSize.min,

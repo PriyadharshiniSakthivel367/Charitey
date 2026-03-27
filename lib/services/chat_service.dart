@@ -1,19 +1,17 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/message_model.dart';
 import '../models/chat_preview_model.dart';
-import '../models/notification_model.dart'; // <--- Make sure this is imported
+import '../models/notification_model.dart'; 
 
 class ChatService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Helper to generate consistent Room IDs
   String getChatRoomId(String userId1, String userId2) {
     List<String> ids = [userId1, userId2];
     ids.sort();
     return ids.join('_');
   }
 
-/// Send a message AND update the Inbox Preview AND send a Notification
   Future<void> sendMessage(String senderId, String senderName, String receiverId, String receiverName, String message, {String? senderPhone, String? senderLocation, String? senderRole}) async {
     try {
       String chatRoomId = getChatRoomId(senderId, receiverId);
@@ -55,8 +53,13 @@ class ChatService {
       if (senderRole == 'ngo') {
         notifTitle = 'Message from NGO';
         notifMessage = 'The NGO you donated to ($senderName) wants to send you a message regarding your donation. Tap to view details.';
-      } else {
-        // --- THIS IS THE FIX YOU REQUESTED ---
+      } 
+      // --- FIX: Added logic for Travel Agency ---
+      else if (senderRole == 'travel_agency') {
+        notifTitle = 'Message from Travel Agency';
+        notifMessage = 'The Travel Agency ($senderName) assigned to your donation has sent a message. Tap to view details.';
+      } 
+      else {
         notifTitle = 'Message from $senderName (Donor)';
         notifMessage = 'Tap to view details and reply.';
       }
@@ -85,7 +88,7 @@ class ChatService {
       rethrow;
     }
   }
-  // Get message stream for the 1-on-1 chat
+
   Stream<List<MessageModel>> getMessages(String userId1, String userId2) {
     String chatRoomId = getChatRoomId(userId1, userId2);
 
@@ -102,7 +105,6 @@ class ChatService {
     });
   }
 
-  // Get the Inbox stream (for the main Chat tab)
   Stream<List<ChatPreviewModel>> getChatInbox(String userId) {
     return _firestore
         .collection('users')

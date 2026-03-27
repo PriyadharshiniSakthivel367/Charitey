@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart'; // REQUIRED for time formatting
+import 'package:intl/intl.dart'; 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../providers/auth_provider.dart';
 import '../services/firestore_service.dart';
-import '../services/chat_service.dart'; // REQUIRED for inbox stream
+import '../services/chat_service.dart'; 
 import '../models/notification_model.dart';
-import '../models/chat_preview_model.dart'; // REQUIRED for the inbox list
+import '../models/chat_preview_model.dart'; 
 import 'donor_listing_screen.dart';
 import 'ngo_dashboard.dart';
 import 'volunteer_dashboard.dart';
@@ -15,7 +15,8 @@ import 'create_listing_screen.dart';
 import 'role_selection.dart';
 import 'hero_page.dart'; 
 import 'notifications_screen.dart'; 
-import 'chat_screen.dart'; // REQUIRED to open a specific chat
+import 'chat_screen.dart'; 
+import 'travel_agency_dashboard.dart'; // REQUIRED IMPORT
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -49,7 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
         const HeroPage(), 
         const NgoDashboard(),
         const CreateListingScreen(), 
-        const ChatListScreen(), // NOW USES THE REAL CHAT INBOX BELOW
+        const ChatListScreen(), 
         const ProfileScreen(),
       ];
       navItems = const [
@@ -64,15 +65,15 @@ class _HomeScreenState extends State<HomeScreen> {
     else if (user.role == 'travel_agency') {
       screens = [
         const HeroPage(), 
-        const TravelAgencyDashboardPlaceholder(), 
-        const Center(child: Text("Available Deliveries Page Coming Soon!")), 
-        const ChatListScreen(), // NOW USES THE REAL CHAT INBOX BELOW
+        const Center(child: Text("Activity Dashboard Coming Soon!")), // Activity is now tab 2
+        const TravelAgencyDashboard(), // <--- DELIVERIES IS NOW CENTERED (Tab 3)
+        const ChatListScreen(), 
         const ProfileScreen(),
       ];
       navItems = const [
         BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Home'),
         BottomNavigationBarItem(icon: Icon(Icons.bar_chart_rounded), label: 'Activity'),
-        BottomNavigationBarItem(icon: Icon(Icons.local_shipping_rounded), label: 'Deliveries'), 
+        BottomNavigationBarItem(icon: Icon(Icons.local_shipping_rounded), label: 'Deliveries'), // <--- CENTERED ICON
         BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_rounded), label: 'Chat'),
         BottomNavigationBarItem(icon: Icon(Icons.person_rounded), label: 'Profile'),
       ];
@@ -83,7 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
         const HeroPage(), 
         const VolunteerDashboard(),
         const DonorListingScreen(),
-        const ChatListScreen(), // NOW USES THE REAL CHAT INBOX BELOW
+        const ChatListScreen(), 
         const ProfileScreen(),
       ];
       navItems = const [
@@ -219,43 +220,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// ==========================================
-// 3. PLACEHOLDER WIDGETS
-// ==========================================
-
-class TravelAgencyDashboardPlaceholder extends StatelessWidget {
-  const TravelAgencyDashboardPlaceholder({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: const Color(0xFFB56F76).withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.airport_shuttle_rounded, size: 60, color: Color(0xFFB56F76)),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            "Logistics Dashboard",
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            "Fleet tracking and food delivery\nroutes will appear here.",
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 15, color: Colors.grey.shade600, height: 1.4),
-          ),
-        ],
-      ),
-    );
-  }
-}
 // ==========================================
 // 4. REAL CHAT INBOX SCREEN 
 // ==========================================
