@@ -9,14 +9,13 @@ import '../models/notification_model.dart';
 import '../models/chat_preview_model.dart'; 
 import 'donor_listing_screen.dart';
 import 'ngo_dashboard.dart';
-import 'volunteer_dashboard.dart';
 import 'profile_screen.dart';
 import 'create_listing_screen.dart';
 import 'role_selection.dart';
 import 'hero_page.dart'; 
 import 'notifications_screen.dart'; 
 import 'chat_screen.dart'; 
-import 'travel_agency_dashboard.dart'; // REQUIRED IMPORT
+import 'travel_agency_dashboard.dart'; 
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -65,24 +64,24 @@ class _HomeScreenState extends State<HomeScreen> {
     else if (user.role == 'travel_agency') {
       screens = [
         const HeroPage(), 
-        const Center(child: Text("Activity Dashboard Coming Soon!")), // Activity is now tab 2
-        const TravelAgencyDashboard(), // <--- DELIVERIES IS NOW CENTERED (Tab 3)
+        const NgoDashboard(), // <--- FIX: Replaced the "Coming Soon" text with the real feed!
+        const TravelAgencyDashboard(), 
         const ChatListScreen(), 
         const ProfileScreen(),
       ];
       navItems = const [
         BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Home'),
         BottomNavigationBarItem(icon: Icon(Icons.bar_chart_rounded), label: 'Activity'),
-        BottomNavigationBarItem(icon: Icon(Icons.local_shipping_rounded), label: 'Deliveries'), // <--- CENTERED ICON
+        BottomNavigationBarItem(icon: Icon(Icons.local_shipping_rounded), label: 'Deliveries'), 
         BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_rounded), label: 'Chat'),
         BottomNavigationBarItem(icon: Icon(Icons.person_rounded), label: 'Profile'),
       ];
-    } 
+    }
     // --- 3. DONOR / VOLUNTEER ROLE (Default) ---
     else {
       screens = [
         const HeroPage(), 
-        const VolunteerDashboard(),
+        const NgoDashboard(), // <--- FIX: Now uses NgoDashboard for the Activity feed
         const DonorListingScreen(),
         const ChatListScreen(), 
         const ProfileScreen(),
@@ -102,23 +101,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAFA),
-      // --- Styled AppBar with Notifications Added ---
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: false,
         title: Row(
           children: [
-            // --- YOUR CUSTOM BIRD LOGO ---
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: Image.asset(
-                'assets/app_logo.png', // Correctly pointing to your new file
+                'assets/app_logo.png', 
                 height: 36,
                 width: 36,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
-                  // Fallback just in case the image fails to load
                   return Container(
                     height: 36, width: 36, color: Colors.grey.shade200,
                     child: const Icon(Icons.broken_image, size: 20),
@@ -134,11 +130,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         actions: [
-          // 🔔 SMART NOTIFICATION BELL
           StreamBuilder<List<NotificationModel>>(
             stream: FirestoreService().getUserNotifications(user.uid),
             builder: (context, snapshot) {
-              // Check if there are any unread notifications
               bool hasUnread = false;
               if (snapshot.hasData) {
                 hasUnread = snapshot.data!.any((notification) => !notification.isRead);
@@ -148,7 +142,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 icon: Stack(
                   children: [
                     const Icon(Icons.notifications_none_rounded, color: Colors.black87, size: 26),
-                    // ONLY show the red dot if hasUnread is TRUE
                     if (hasUnread)
                       Positioned(
                         right: 2,
@@ -176,7 +169,6 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             }
           ),
-          // Logout Button
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.black87),
             onPressed: () async {
@@ -220,9 +212,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// ==========================================
-// 4. REAL CHAT INBOX SCREEN 
-// ==========================================
 class ChatListScreen extends StatelessWidget {
   const ChatListScreen({super.key});
   
@@ -249,7 +238,6 @@ class ChatListScreen extends StatelessWidget {
 
           final chatPreviews = snapshot.data ?? [];
 
-          // --- EMPTY STATE ---
           if (chatPreviews.isEmpty) {
             return Center(
               child: Column(
@@ -279,7 +267,6 @@ class ChatListScreen extends StatelessWidget {
             );
           }
 
-          // --- INBOX LIST ---
           return ListView.builder(
             padding: const EdgeInsets.only(top: 8),
             itemCount: chatPreviews.length,
@@ -350,7 +337,6 @@ class ChatListScreen extends StatelessWidget {
                     ),
                   ),
                   onTap: () {
-                    // Mark as read in Firestore to remove the dot
                     FirebaseFirestore.instance
                         .collection('users')
                         .doc(user.uid)
@@ -358,7 +344,6 @@ class ChatListScreen extends StatelessWidget {
                         .doc(preview.chatRoomId)
                         .update({'hasUnread': false});
 
-                    // Navigate to the Direct Chat Screen
                     Navigator.push(
                       context,
                       MaterialPageRoute(

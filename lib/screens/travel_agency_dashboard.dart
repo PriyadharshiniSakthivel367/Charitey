@@ -13,8 +13,10 @@ class TravelAgencyDashboard extends StatefulWidget {
 
 class _TravelAgencyDashboardState extends State<TravelAgencyDashboard> {
   final Color themeColor = const Color(0xFF7D444C); 
-  // --- NEW: Added ScrollController for the Scrollbar ---
   final ScrollController _scrollController = ScrollController();
+  
+  // --- NEW: Controls which tab is active ---
+  bool _showAvailable = true; 
 
   @override
   void dispose() {
@@ -36,6 +38,12 @@ class _TravelAgencyDashboardState extends State<TravelAgencyDashboard> {
           backgroundColor: Colors.green,
         ),
       );
+      
+      // Optionally switch to the Accepted tab automatically
+      setState(() {
+        _showAvailable = false;
+      });
+
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to accept delivery: $e')),
@@ -53,134 +61,204 @@ class _TravelAgencyDashboardState extends State<TravelAgencyDashboard> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('donations')
-            .where('status', whereIn: ['pending', 'delivery_accepted'])
-            .snapshots(),
-        builder: (context, donationSnapshot) {
-          if (donationSnapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator(color: themeColor));
-          }
+      body: Column(
+        children: [
+          // --- NEW: TOP TOGGLE BUTTONS ---
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 20, 16, 10),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(30),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _showAvailable = true;
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: _showAvailable ? themeColor : Colors.transparent,
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      child: Center(
+                        child: Text(
+                          "Available",
+                          style: TextStyle(
+                            color: _showAvailable ? Colors.white : Colors.grey.shade600,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _showAvailable = false;
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: !_showAvailable ? themeColor : Colors.transparent,
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      child: Center(
+                        child: Text(
+                          "Accepted",
+                          style: TextStyle(
+                            color: !_showAvailable ? Colors.white : Colors.grey.shade600,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
 
-          if (!donationSnapshot.hasData || donationSnapshot.data!.docs.isEmpty) {
-            return _buildEmptyState();
-          }
-
-          // Sort donations so newest is always at the top
-          var donations = donationSnapshot.data!.docs.toList();
-          donations.sort((a, b) {
-            var aData = a.data() as Map<String, dynamic>;
-            var bData = b.data() as Map<String, dynamic>;
-            DateTime aTime = (aData['createdAt'] as Timestamp?)?.toDate() ?? DateTime(2000);
-            DateTime bTime = (bData['createdAt'] as Timestamp?)?.toDate() ?? DateTime(2000);
-            return bTime.compareTo(aTime); 
-          });
-
-          // --- NEW: Added Scrollbar Widget ---
-          return Scrollbar(
-            controller: _scrollController,
-            thumbVisibility: true, // Makes scrollbar always visible
-            thickness: 6.0,
-            radius: const Radius.circular(10),
-            child: ListView.builder(
-              controller: _scrollController, // Connected controller
-              padding: const EdgeInsets.only(top: 16, left: 16, right: 16, bottom: 80),
-              itemCount: donations.length,
-              itemBuilder: (context, index) {
-                var donationDoc = donations[index];
-                var donationData = donationDoc.data() as Map<String, dynamic>;
-                var donationId = donationDoc.id;
-                
-                String listingId = donationData['listingId'] ?? '';
-                String donorId = donationData['donorId'] ?? '';
-                
-                // Hide broken old data
-                if (listingId.isEmpty || donorId.isEmpty) {
-                  return const SizedBox.shrink(); 
+          // --- MAIN LIST VIEW ---
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('donations')
+                  .where('status', whereIn: ['pending', 'delivery_accepted'])
+                  .snapshots(),
+              builder: (context, donationSnapshot) {
+                if (donationSnapshot.connectionState == ConnectionState.waiting) {
+                  return Center(child: CircularProgressIndicator(color: themeColor));
                 }
 
-                String donorName = donationData['donorName'] ?? 'Unknown Donor';
-                String donorLocation = donationData['donorLocation'] ?? 'Location unavailable';
-                String donorPhone = donationData['donorPhone'] ?? 'Phone unavailable';
-                String status = donationData['status'] ?? 'pending';
-                String? assignedAgencyId = donationData['assignedAgencyId'];
+                if (!donationSnapshot.hasData || donationSnapshot.data!.docs.isEmpty) {
+                  return _buildEmptyState();
+                }
 
-                return FutureBuilder<DocumentSnapshot>(
-                  future: FirebaseFirestore.instance.collection('ngo_listings').doc(listingId).get(),
-                  builder: (context, listingSnapshot) {
-                    if (!listingSnapshot.hasData || !listingSnapshot.data!.exists) {
-                      return const SizedBox.shrink();
-                    }
+                // Sort donations so newest is always at the top
+                var donations = donationSnapshot.data!.docs.toList();
+                donations.sort((a, b) {
+                  var aData = a.data() as Map<String, dynamic>;
+                  var bData = b.data() as Map<String, dynamic>;
+                  DateTime aTime = (aData['createdAt'] as Timestamp?)?.toDate() ?? DateTime(2000);
+                  DateTime bTime = (bData['createdAt'] as Timestamp?)?.toDate() ?? DateTime(2000);
+                  return bTime.compareTo(aTime); 
+                });
 
-                    var listingData = listingSnapshot.data!.data() as Map<String, dynamic>;
-                    bool? isVolunteerAvailable = listingData['isVolunteerAvailable'] as bool?;
-
-                    // LOGIC: If NGO selected "Yes" for Volunteer, hide it
-                    if (isVolunteerAvailable == true) {
-                      return const SizedBox.shrink(); 
-                    }
-
-                    bool isAcceptedByMe = status == 'delivery_accepted' && assignedAgencyId == user.uid;
-
-                    // If someone else accepted it, hide it from this agency
-                    if (status == 'delivery_accepted' && !isAcceptedByMe) {
-                      return const SizedBox.shrink();
-                    }
-
-                    String type = listingData['type'] ?? 'food';
-                    String itemName = type == 'food' 
-                        ? (listingData['foodType'] ?? "Food") 
-                        : (listingData['productName'] ?? "Product");
-                    
-                    String quantityVal = listingData['quantity']?.toString() ?? '';
-                    String unitVal = listingData['unit']?.toString() ?? '';
-                    String quantity = quantityVal.isEmpty ? '1 Unit' : '$quantityVal $unitVal';
-                    
-                    String availability = listingData['availability'] ?? 'Time not specified';
-                    String ngoName = listingData['ngoName'] ?? 'Unknown NGO';
-                    String ngoLocation = listingData['ngoLocation'] ?? 'Location unavailable';
-                    String ngoId = listingData['ngoId'] ?? ''; // Need this to fetch phone
-
-                    // --- NEW: Fetch NGO's Real Phone Number from Users collection ---
-                    return FutureBuilder<DocumentSnapshot>(
-                      future: FirebaseFirestore.instance.collection('users').doc(ngoId).get(),
-                      builder: (context, ngoUserSnapshot) {
-                        String ngoPhone = 'Phone unavailable';
-                        
-                        if (ngoUserSnapshot.hasData && ngoUserSnapshot.data!.exists) {
-                          var ngoUserData = ngoUserSnapshot.data!.data() as Map<String, dynamic>;
-                          ngoPhone = ngoUserData['phone'] ?? 'Phone unavailable';
-                        }
-
-                        return _buildDeliveryCard(
-                          donationId: donationId,
-                          itemName: itemName,
-                          quantity: quantity,
-                          availability: availability,
-                          ngoName: ngoName,
-                          ngoLocation: ngoLocation,
-                          ngoPhone: ngoPhone, // Passed fetched phone number
-                          donorName: donorName,
-                          donorLocation: donorLocation,
-                          donorPhone: donorPhone,
-                          donorId: donorId,
-                          myId: user.uid,
-                          isAcceptedByMe: isAcceptedByMe,
-                        );
+                return Scrollbar(
+                  controller: _scrollController,
+                  thumbVisibility: true, 
+                  thickness: 6.0,
+                  radius: const Radius.circular(10),
+                  child: ListView.builder(
+                    controller: _scrollController, 
+                    padding: const EdgeInsets.only(top: 8, left: 16, right: 16, bottom: 80),
+                    itemCount: donations.length,
+                    itemBuilder: (context, index) {
+                      var donationDoc = donations[index];
+                      var donationData = donationDoc.data() as Map<String, dynamic>;
+                      var donationId = donationDoc.id;
+                      
+                      String listingId = donationData['listingId'] ?? '';
+                      String donorId = donationData['donorId'] ?? '';
+                      
+                      if (listingId.isEmpty || donorId.isEmpty) {
+                        return const SizedBox.shrink(); 
                       }
-                    );
-                  },
+
+                      String donorName = donationData['donorName'] ?? 'Unknown Donor';
+                      String donorLocation = donationData['donorLocation'] ?? 'Location unavailable';
+                      String donorPhone = donationData['donorPhone'] ?? 'Phone unavailable';
+                      String status = donationData['status'] ?? 'pending';
+                      String? assignedAgencyId = donationData['assignedAgencyId'];
+
+                      bool isAcceptedByMe = status == 'delivery_accepted' && assignedAgencyId == user.uid;
+
+                      // --- TAB FILTERING LOGIC ---
+                      if (_showAvailable) {
+                        // In "Available" tab, hide if it's already accepted by anyone
+                        if (status == 'delivery_accepted') return const SizedBox.shrink();
+                      } else {
+                        // In "Accepted" tab, hide if it's pending OR accepted by someone else
+                        if (!isAcceptedByMe) return const SizedBox.shrink();
+                      }
+
+                      return FutureBuilder<DocumentSnapshot>(
+                        future: FirebaseFirestore.instance.collection('ngo_listings').doc(listingId).get(),
+                        builder: (context, listingSnapshot) {
+                          if (!listingSnapshot.hasData || !listingSnapshot.data!.exists) {
+                            return const SizedBox.shrink();
+                          }
+
+                          var listingData = listingSnapshot.data!.data() as Map<String, dynamic>;
+                          bool? isVolunteerAvailable = listingData['isVolunteerAvailable'] as bool?;
+
+                          // If NGO selected "Yes" for Volunteer, hide it entirely
+                          if (isVolunteerAvailable == true) {
+                            return const SizedBox.shrink(); 
+                          }
+
+                          String type = listingData['type'] ?? 'food';
+                          String itemName = type == 'food' 
+                              ? (listingData['foodType'] ?? "Food") 
+                              : (listingData['productName'] ?? "Product");
+                          
+                          String quantityVal = listingData['quantity']?.toString() ?? '';
+                          String unitVal = listingData['unit']?.toString() ?? '';
+                          String quantity = quantityVal.isEmpty ? '1 Unit' : '$quantityVal $unitVal';
+                          
+                          String availability = listingData['availability'] ?? 'Time not specified';
+                          String ngoName = listingData['ngoName'] ?? 'Unknown NGO';
+                          String ngoLocation = listingData['ngoLocation'] ?? 'Location unavailable';
+                          String ngoId = listingData['ngoId'] ?? ''; 
+
+                          return FutureBuilder<DocumentSnapshot>(
+                            future: FirebaseFirestore.instance.collection('users').doc(ngoId).get(),
+                            builder: (context, ngoUserSnapshot) {
+                              String ngoPhone = 'Phone unavailable';
+                              
+                              if (ngoUserSnapshot.hasData && ngoUserSnapshot.data!.exists) {
+                                var ngoUserData = ngoUserSnapshot.data!.data() as Map<String, dynamic>;
+                                ngoPhone = ngoUserData['phone'] ?? 'Phone unavailable';
+                              }
+
+                              return _buildDeliveryCard(
+                                donationId: donationId,
+                                itemName: itemName,
+                                quantity: quantity,
+                                availability: availability,
+                                ngoName: ngoName,
+                                ngoLocation: ngoLocation,
+                                ngoPhone: ngoPhone, 
+                                donorName: donorName,
+                                donorLocation: donorLocation,
+                                donorPhone: donorPhone,
+                                donorId: donorId,
+                                myId: user.uid,
+                                isAcceptedByMe: isAcceptedByMe,
+                              );
+                            }
+                          );
+                        },
+                      );
+                    },
+                  ),
                 );
               },
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
 
-  // --- NEATLY ALIGNED CARD DESIGN ---
   Widget _buildDeliveryCard({
     required String donationId,
     required String itemName,
@@ -210,7 +288,6 @@ class _TravelAgencyDashboardState extends State<TravelAgencyDashboard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- TOP HEADER: Status & Quantity ---
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -231,7 +308,6 @@ class _TravelAgencyDashboardState extends State<TravelAgencyDashboard> {
             ),
             const SizedBox(height: 16),
             
-            // --- ITEM NAME ---
             Text(itemName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87)),
             
             const SizedBox(height: 8),
@@ -245,11 +321,9 @@ class _TravelAgencyDashboardState extends State<TravelAgencyDashboard> {
 
             const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Divider(height: 1)),
             
-            // --- NEATLY ALIGNED BOXES FOR DONOR & NGO DETAILS ---
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // DONOR DETAILS
                 Expanded(
                   child: Container(
                     padding: const EdgeInsets.all(12),
@@ -275,7 +349,6 @@ class _TravelAgencyDashboardState extends State<TravelAgencyDashboard> {
                 
                 const SizedBox(width: 12),
                 
-                // NGO DETAILS
                 Expanded(
                   child: Container(
                     padding: const EdgeInsets.all(12),
@@ -303,7 +376,6 @@ class _TravelAgencyDashboardState extends State<TravelAgencyDashboard> {
             
             const SizedBox(height: 20),
 
-            // --- ACTION BUTTONS ---
             if (!isAcceptedByMe)
               SizedBox(
                 width: double.infinity,
@@ -375,9 +447,15 @@ class _TravelAgencyDashboardState extends State<TravelAgencyDashboard> {
             child: Icon(Icons.local_shipping_outlined, size: 60, color: themeColor),
           ),
           const SizedBox(height: 24),
-          const Text("No deliveries available", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87)),
+          Text(
+            _showAvailable ? "No deliveries available" : "No accepted deliveries", 
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87)
+          ),
           const SizedBox(height: 8),
-          Text("Check back later for new pickup requests.", style: TextStyle(color: Colors.grey.shade500, fontSize: 15)),
+          Text(
+            _showAvailable ? "Check back later for new pickup requests." : "Accept a delivery to see it here.", 
+            style: TextStyle(color: Colors.grey.shade500, fontSize: 15)
+          ),
         ],
       ),
     );
