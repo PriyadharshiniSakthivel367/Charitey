@@ -5,6 +5,7 @@ import '../providers/auth_provider.dart';
 import '../services/firestore_service.dart';
 import '../models/notification_model.dart';
 import 'chat_screen.dart';
+import 'home_screen.dart'; // <-- IMPORTANT: Needed to navigate back to HomeScreen
 
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({Key? key}) : super(key: key);
@@ -47,7 +48,7 @@ class NotificationsScreen extends StatelessWidget {
               
               if (!isDonationOffer) {
                  isSenderNGO = data['senderRole'] == 'ngo';
-                 isSenderTravelAgency = data['senderRole'] == 'travel_agency'; // <-- Added check
+                 isSenderTravelAgency = data['senderRole'] == 'travel_agency'; 
               }
 
               // Determine correct labels based on role
@@ -211,6 +212,7 @@ class NotificationsScreen extends StatelessWidget {
             itemBuilder: (context, index) {
               final notif = notifications[index];
               bool isMessage = notif.type == 'new_message';
+              bool isTag = notif.type == 'tag'; 
 
               return Container(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -226,7 +228,7 @@ class NotificationsScreen extends StatelessWidget {
                   leading: CircleAvatar(
                     backgroundColor: themeColor.withValues(alpha: 0.1),
                     child: Icon(
-                      isMessage ? Icons.message_rounded : Icons.volunteer_activism, 
+                      isTag ? Icons.photo_library_rounded : (isMessage ? Icons.message_rounded : Icons.volunteer_activism), 
                       color: themeColor
                     ),
                   ),
@@ -252,11 +254,26 @@ class NotificationsScreen extends StatelessWidget {
                     decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
                   ),
                   onTap: () {
+                    // Mark as read no matter what
                     if (!notif.isRead) {
                       firestoreService.markNotificationAsRead(notif.id);
                     }
                     
-                    _showRichDetailsPopup(context, notif, themeColor, notif.type == 'donation_offer');
+                    // --- BULLETPROOF FIX: Navigate with explicitly assigned tab ---
+                    if (isTag) {
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => HomeScreen(
+                            initialIndex: 1, // Force Tab 1 (Activity Feed)
+                            targetPostId: notif.relatedItemId, // Pass the Post ID to scroll to
+                          ),
+                        ),
+                        (Route<dynamic> route) => false, // Clears the stack so they don't hit 'back' to nowhere
+                      );
+                    } else {
+                      _showRichDetailsPopup(context, notif, themeColor, notif.type == 'donation_offer');
+                    }
                   },
                 ),
               );

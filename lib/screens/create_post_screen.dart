@@ -6,7 +6,9 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../providers/auth_provider.dart';
 import '../services/storage_service.dart';
+import '../services/firestore_service.dart'; 
 import '../models/post_model.dart';
+import '../models/notification_model.dart'; 
 import '../widgets/custom_button.dart';
 
 class CreatePostScreen extends StatefulWidget {
@@ -18,8 +20,10 @@ class CreatePostScreen extends StatefulWidget {
 
 class _CreatePostScreenState extends State<CreatePostScreen> {
   final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _donorTagController = TextEditingController();
   
+  String _selectedDonorName = '';
+  String _selectedDonorUid = ''; 
+
   File? _selectedImage;
   Uint8List? _webImage;
   final ImagePicker _picker = ImagePicker();
@@ -30,7 +34,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   @override
   void dispose() {
     _descriptionController.dispose();
-    _donorTagController.dispose();
     super.dispose();
   }
 
@@ -62,47 +65,53 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // 1. Upload Image to Storage
       final storageService = StorageService();
       String? imageUrl;
 
       try {
-        // Give it 5 seconds. If Firebase blocks it, we catch the error instead of freezing.
         imageUrl = await storageService.uploadImage(_selectedImage, _webImage).timeout(const Duration(seconds: 5));
       } catch (e) {
         print("Firebase Storage blocked the upload: $e");
       }
 
-      // --- THE MAGIC BYPASS FOR TESTING ---
       if (imageUrl == null || imageUrl.isEmpty) {
-        // We use a high-quality placeholder image from Unsplash so your app keeps working!
         imageUrl = 'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?q=80&w=1000&auto=format&fit=crop';
-        
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Storage access blocked. Using a test image so you can continue!"),
-              backgroundColor: Colors.orange,
-            ),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Using a test image so you can continue!"), backgroundColor: Colors.orange));
         }
       }
 
-      // 2. Create Post Model
       String postId = FirebaseFirestore.instance.collection('posts').doc().id;
       
       PostModel newPost = PostModel(
         postId: postId,
         ngoId: user.uid,
-        donorId: _donorTagController.text.trim(), 
+        donorId: _selectedDonorName, 
+        donorUid: _selectedDonorUid, 
         image: imageUrl,
         description: _descriptionController.text.trim(),
         likes: 0,
         createdAt: DateTime.now(),
       );
 
-      // 3. Save to Firestore
       await FirebaseFirestore.instance.collection('posts').doc(postId).set(newPost.toMap());
+
+      if (_selectedDonorUid.isNotEmpty) {
+        String notifId = FirebaseFirestore.instance.collection('notifications').doc().id;
+        NotificationModel notification = NotificationModel(
+          id: notifId,
+          receiverId: _selectedDonorUid,
+          senderId: user.uid, 
+          senderName: user.name, 
+          title: "You were tagged in a post!",
+          message: "${user.name} tagged you in their Impact Gallery.",
+          type: 'tag',
+          relatedItemId: postId, 
+          createdAt: DateTime.now(),
+          isRead: false,
+        );
+        await FirestoreService().sendNotification(notification);
+      }
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -115,6 +124,36 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // --- FIX: SEARCH BY USERNAME ONLY ---
+  Future<List<Map<String, String>>> _searchUsers(String query) async {
+    if (query.isEmpty) return [];
+
+    // Strip out the '@' if they typed it, and make it lowercase to match database
+    String safeQuery = query.replaceAll('@', '').toLowerCase();
+
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          // Search by 'username' instead of 'name'
+          .where('username', isGreaterThanOrEqualTo: safeQuery)
+          .where('username', isLessThanOrEqualTo: '$safeQuery\uf8ff')
+          .limit(5) 
+          .get();
+
+      return snapshot.docs.map((doc) {
+        var data = doc.data();
+        return {
+          'uid': doc.id,
+          'name': data['name'] as String? ?? 'Unknown',
+          'username': data['username'] as String? ?? '', 
+        };
+      }).where((user) => user['username']!.isNotEmpty).toList(); // Only return users who actually have a username
+    } catch (e) {
+      print("Search error: $e");
+      return [];
     }
   }
 
@@ -137,7 +176,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- IMAGE PICKER ---
             GestureDetector(
               onTap: _pickImage,
               child: Container(
@@ -167,25 +205,73 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             ),
             const SizedBox(height: 24),
 
-            // --- DONOR TAG ---
+            // --- INSTAGRAM-STYLE AUTOCOMPLETE TAGGING ---
             const Text("Tag Donor (Optional)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
             const SizedBox(height: 8),
-            TextFormField(
-              controller: _donorTagController,
-              decoration: InputDecoration(
-                hintText: "Enter donor's name...",
-                prefixIcon: Icon(Icons.person_add_alt_1_rounded, color: Colors.grey.shade500),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: themeColor)),
-              ),
+            Autocomplete<Map<String, String>>(
+              optionsBuilder: (TextEditingValue textEditingValue) async {
+                if (textEditingValue.text == '') {
+                  return const Iterable<Map<String, String>>.empty();
+                }
+                return await _searchUsers(textEditingValue.text);
+              },
+              // Display ONLY the @username in the text box once selected
+              displayStringForOption: (Map<String, String> option) => "@${option['username']}",
+              onSelected: (Map<String, String> selection) {
+                setState(() {
+                  _selectedDonorName = "@${selection['username']}";
+                  _selectedDonorUid = selection['uid']!;
+                });
+              },
+              fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                return TextFormField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  onEditingComplete: onEditingComplete,
+                  decoration: InputDecoration(
+                    hintText: "Search @username...",
+                    prefixIcon: Icon(Icons.alternate_email_rounded, color: Colors.grey.shade500), // Changed icon to @
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: themeColor)),
+                  ),
+                );
+              },
+              optionsViewBuilder: (context, onSelected, options) {
+                return Align(
+                  alignment: Alignment.topLeft,
+                  child: Material(
+                    elevation: 4.0,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      width: MediaQuery.of(context).size.width - 40,
+                      constraints: const BoxConstraints(maxHeight: 200),
+                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(8),
+                        itemCount: options.length,
+                        shrinkWrap: true,
+                        itemBuilder: (BuildContext context, int index) {
+                          final option = options.elementAt(index);
+                          return ListTile(
+                            leading: CircleAvatar(backgroundColor: themeColor.withValues(alpha: 0.1), child: Icon(Icons.person, color: themeColor)),
+                            // --- FIX: Show ONLY the @username in the list ---
+                            title: Text("@${option['username']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            onTap: () => onSelected(option),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
+            
             const SizedBox(height: 20),
 
-            // --- CAPTION ---
             const Text("Description", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
             const SizedBox(height: 8),
             TextFormField(
@@ -202,7 +288,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             ),
             const SizedBox(height: 40),
 
-            // --- PUBLISH BUTTON ---
             CustomButton(
               text: "Share to Gallery",
               isLoading: _isLoading,

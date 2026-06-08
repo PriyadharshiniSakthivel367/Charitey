@@ -2,13 +2,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class NotificationModel {
   final String id;
-  final String receiverId; // The NGO receiving the alert
-  final String senderId;   // The Donor
+  final String receiverId; 
+  final String senderId;   
   final String senderName; 
-  final String type;       // e.g., 'donation_offer'
+  final String type;       // 'donation_offer', 'new_message', or 'tag'
   final String title;
   final String message;
-  final String relatedItemId; // The ID of the donation
+  final String relatedItemId; // The ID of the donation or post
   final bool isRead;
   final DateTime createdAt;
 

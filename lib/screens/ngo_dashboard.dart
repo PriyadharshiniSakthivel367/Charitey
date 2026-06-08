@@ -2,19 +2,68 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'dart:math' as math; 
+// --- IMPORTS FOR SHARING ---
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:http/http.dart' as http;
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
+// -------------------------------
 import '../providers/auth_provider.dart';
 import '../models/post_model.dart';
 import 'create_post_screen.dart';
 
 class NgoDashboard extends StatefulWidget {
-  const NgoDashboard({super.key});
+  final String? targetPostId;
+  const NgoDashboard({super.key, this.targetPostId});
 
   @override
   State<NgoDashboard> createState() => _NgoDashboardState();
 }
 
-class _NgoDashboardState extends State<NgoDashboard> {
-  final Color themeColor = const Color(0xFFB56F76);
+class _NgoDashboardState extends State<NgoDashboard> with TickerProviderStateMixin {
+  final Color themeColor = const Color(0xFFB56F76); // Your Dusky Rose
+  final ScrollController _scrollController = ScrollController();
+  bool _hasScrolled = false;
+  
+  late AnimationController _bgController;
+
+  @override
+  void initState() {
+    super.initState();
+    _bgController = AnimationController(
+      duration: const Duration(seconds: 15), 
+      vsync: this,
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _bgController.dispose(); 
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollToTarget(List<QueryDocumentSnapshot> posts) {
+    if (widget.targetPostId != null && !_hasScrolled) {
+      int index = posts.indexWhere((doc) => doc.id == widget.targetPostId);
+      if (index != -1) {
+        _hasScrolled = true;
+        double offset = index * 550.0;
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_scrollController.hasClients) {
+            _scrollController.animateTo(
+              offset,
+              duration: const Duration(milliseconds: 800),
+              curve: Curves.easeInOut,
+            );
+          }
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,71 +74,137 @@ class _NgoDashboardState extends State<NgoDashboard> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('posts')
-            .orderBy('createdAt', descending: true)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator(color: themeColor));
-          }
-
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return _buildEmptyState(user.role); 
-          }
-
-          var posts = snapshot.data!.docs;
-
-          return ListView.builder(
-            padding: const EdgeInsets.only(bottom: 80),
-            itemCount: posts.length,
-            itemBuilder: (context, index) {
-              var post = PostModel.fromMap(posts[index].data() as Map<String, dynamic>, posts[index].id);
-              
-              if (post.image.isEmpty || !post.image.startsWith('http')) {
-                return const SizedBox.shrink();
-              }
-
-              return FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance.collection('users').doc(post.ngoId).get(),
-                builder: (context, userSnapshot) {
-                  String ngoName = "NGO";
-                  if (userSnapshot.hasData && userSnapshot.data!.exists) {
-                    ngoName = (userSnapshot.data!.data() as Map<String, dynamic>)['name'] ?? "NGO";
-                  }
-
-                  return PostCardWidget(
-                    post: post, 
-                    ngoName: ngoName, 
-                    currentUserId: user.uid,
-                    themeColor: themeColor,
-                  );
-                }
-              );
-            },
-          );
-        },
-      ),
-      
-      // --- FIX: Only show + button if the user is an NGO ---
-      floatingActionButton: user.role == 'ngo' 
-        ? FloatingActionButton(
-            backgroundColor: themeColor,
-            elevation: 6,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const CreatePostScreen(),
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        children: [
+          // =========================================================
+          // RICHER DUSKY ROSE FLUID BACKGROUND
+          // =========================================================
+          AnimatedBuilder(
+            animation: _bgController,
+            builder: (context, child) {
+              return Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment(
+                      math.cos(_bgController.value * math.pi * 2), 
+                      math.sin(_bgController.value * math.pi * 2)
+                    ),
+                    end: Alignment(
+                      math.cos(_bgController.value * math.pi * 2 + math.pi), 
+                      math.sin(_bgController.value * math.pi * 2 + math.pi)
+                    ),
+                    // INCREASED INTENSITY: Deeper rose and peach tones
+                    colors: const [
+                      Color(0xFFF2D9DB), // Soft rose
+                      Color(0xFFE5B8BD), // Richer dusky pink
+                      Color(0xFFDCA3A9), // Deepest accent rose
+                      Color(0xFFF5E1E4), // Light warm peach-pink
+                    ],
+                    stops: const [0.0, 0.35, 0.7, 1.0],
+                  ),
                 ),
               );
             },
-            child: const Icon(Icons.add_rounded, color: Colors.white, size: 32),
-          )
-        : null, 
+          ),
+
+          // =========================================================
+          // EXISTING ACTIVITY FEED
+          // =========================================================
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('posts')
+                .orderBy('createdAt', descending: true)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return Center(child: CircularProgressIndicator(color: themeColor));
+              }
+
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return _buildEmptyState(user.role);
+              }
+
+              var posts = snapshot.data!.docs;
+              _scrollToTarget(posts);
+
+              return ListView.builder(
+                controller: _scrollController,
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.only(bottom: 100, top: 10),
+                itemCount: posts.length,
+                itemBuilder: (context, index) {
+                  var post = PostModel.fromMap(
+                    posts[index].data() as Map<String, dynamic>,
+                    posts[index].id,
+                  );
+
+                  if (post.image.isEmpty || !post.image.startsWith('http')) {
+                    return const SizedBox.shrink();
+                  }
+
+                  bool isTarget = post.postId == widget.targetPostId;
+
+                  return FutureBuilder<DocumentSnapshot>(
+                    future: FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(post.ngoId)
+                        .get(),
+                    builder: (context, userSnapshot) {
+                      String ngoName = "NGO";
+                      if (userSnapshot.hasData && userSnapshot.data!.exists) {
+                        ngoName = (userSnapshot.data!.data() as Map<String, dynamic>)['name'] ?? "NGO";
+                      }
+
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 800),
+                        decoration: isTarget
+                            ? BoxDecoration(
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: themeColor.withOpacity(0.3),
+                                    blurRadius: 30,
+                                    spreadRadius: 8,
+                                  ),
+                                ],
+                              )
+                            : const BoxDecoration(),
+                        child: PostCardWidget(
+                          post: post,
+                          ngoName: ngoName,
+                          currentUserId: user.uid,
+                          themeColor: themeColor,
+                        ),
+                      );
+                    },
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
+
+      floatingActionButton: user.role == 'ngo'
+          ? FloatingActionButton(
+              backgroundColor: themeColor,
+              elevation: 6,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CreatePostScreen()),
+                );
+              },
+              child: const Icon(
+                Icons.add_rounded,
+                color: Colors.white,
+                size: 32,
+              ),
+            )
+          : null,
     );
   }
 
@@ -100,18 +215,43 @@ class _NgoDashboardState extends State<NgoDashboard> {
         children: [
           Container(
             padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 15, offset: const Offset(0, 5))]),
-            child: Icon(Icons.photo_library_outlined, size: 60, color: Colors.grey.shade300),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.photo_library_outlined,
+              size: 60,
+              color: Colors.grey.shade300,
+            ),
           ),
           const SizedBox(height: 24),
-          const Text("Impact Gallery", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87)),
+          const Text(
+            "Impact Gallery",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
           const SizedBox(height: 12),
           Text(
-            role == 'ngo' 
-              ? "No posts yet.\nClick the + button to share an update!"
-              : "No posts yet.\nCheck back later for updates!", 
-            textAlign: TextAlign.center, 
-            style: TextStyle(fontSize: 15, color: Colors.grey.shade500, height: 1.4)
+            role == 'ngo'
+                ? "No posts yet.\nClick the + button to share an update!"
+                : "No posts yet.\nCheck back later for updates!",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 15,
+              color: Colors.grey.shade600,
+              height: 1.4,
+            ),
           ),
         ],
       ),
@@ -142,15 +282,60 @@ class PostCardWidget extends StatefulWidget {
 
 class _PostCardWidgetState extends State<PostCardWidget> {
   bool _isLiked = false;
+  bool _isSharing = false; 
 
   void _toggleLike() {
     setState(() {
       _isLiked = !_isLiked;
     });
 
-    FirebaseFirestore.instance.collection('posts').doc(widget.post.postId).update({
-      'likes': FieldValue.increment(_isLiked ? 1 : -1),
-    });
+    FirebaseFirestore.instance
+        .collection('posts')
+        .doc(widget.post.postId)
+        .update({'likes': FieldValue.increment(_isLiked ? 1 : -1)});
+  }
+
+  Future<void> _sharePost() async {
+    if (kIsWeb) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Sharing is only supported on mobile devices (Android/iOS).",
+          ),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isSharing = true);
+
+    try {
+      final url = Uri.parse(widget.post.image);
+      final response = await http.get(url);
+      final bytes = response.bodyBytes;
+
+      final tempDir = await getTemporaryDirectory();
+      final path = '${tempDir.path}/shared_post_${widget.post.postId}.jpg';
+      File(path).writeAsBytesSync(bytes);
+
+      String textToShare = "${widget.post.description}\n\n";
+
+      if (widget.post.donorId.isNotEmpty) {
+        textToShare += "✨ ${widget.post.donorId}\n\n";
+      }
+
+      textToShare += "Shared via Charitey App❤️";
+
+      await Share.shareXFiles([XFile(path)], text: textToShare);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error sharing post: $e")));
+      }
+    } finally {
+      if (mounted) setState(() => _isSharing = false);
+    }
   }
 
   void _deletePost() {
@@ -158,7 +343,9 @@ class _PostCardWidgetState extends State<PostCardWidget> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Delete Post"),
-        content: const Text("Are you sure you want to delete this post? This cannot be undone."),
+        content: const Text(
+          "Are you sure you want to delete this post? This cannot be undone.",
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -166,13 +353,24 @@ class _PostCardWidgetState extends State<PostCardWidget> {
           ),
           TextButton(
             onPressed: () async {
-              Navigator.pop(context); 
-              await FirebaseFirestore.instance.collection('posts').doc(widget.post.postId).delete();
+              Navigator.pop(context);
+              await FirebaseFirestore.instance
+                  .collection('posts')
+                  .doc(widget.post.postId)
+                  .delete();
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Post deleted"), backgroundColor: Colors.red));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Post deleted"),
+                    backgroundColor: Colors.red,
+                  ),
+                );
               }
             },
-            child: const Text("Delete", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            child: const Text(
+              "Delete",
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -180,25 +378,37 @@ class _PostCardWidgetState extends State<PostCardWidget> {
   }
 
   void _editPost() {
-    TextEditingController descController = TextEditingController(text: widget.post.description);
-    TextEditingController tagController = TextEditingController(text: widget.post.donorId);
+    TextEditingController descController = TextEditingController(
+      text: widget.post.description,
+    );
+    TextEditingController tagController = TextEditingController(
+      text: widget.post.donorId,
+    );
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Edit Post"),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text("Edit Post", style: TextStyle(fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: tagController,
-              decoration: const InputDecoration(labelText: "Tag Donor (Optional)", prefixIcon: Icon(Icons.person_add)),
+              decoration: InputDecoration(
+                labelText: "Tag Donor (Optional)",
+                prefixIcon: const Icon(Icons.person_add),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 16),
             TextField(
               controller: descController,
               maxLines: 3,
-              decoration: const InputDecoration(labelText: "Description"),
+              decoration: InputDecoration(
+                labelText: "Description",
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
             ),
           ],
         ),
@@ -208,15 +418,26 @@ class _PostCardWidgetState extends State<PostCardWidget> {
             child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: widget.themeColor),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: widget.themeColor,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))
+            ),
             onPressed: () async {
-              Navigator.pop(context); 
-              await FirebaseFirestore.instance.collection('posts').doc(widget.post.postId).update({
-                'description': descController.text.trim(),
-                'donorId': tagController.text.trim(),
-              });
+              Navigator.pop(context);
+              await FirebaseFirestore.instance
+                  .collection('posts')
+                  .doc(widget.post.postId)
+                  .update({
+                    'description': descController.text.trim(),
+                    'donorId': tagController.text.trim(),
+                  });
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Post updated!"), backgroundColor: Colors.green));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Post updated!"),
+                    backgroundColor: Colors.green,
+                  ),
+                );
               }
             },
             child: const Text("Save", style: TextStyle(color: Colors.white)),
@@ -232,51 +453,107 @@ class _PostCardWidgetState extends State<PostCardWidget> {
     bool isMyPost = widget.post.ngoId == widget.currentUserId;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      color: Colors.white,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06), 
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+        border: Border.all(color: Colors.white, width: 2), 
+      ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.all(16),
             child: Row(
               children: [
                 CircleAvatar(
-                  backgroundColor: widget.themeColor.withValues(alpha: 0.2),
-                  child: Text(widget.ngoName[0].toUpperCase(), style: TextStyle(color: widget.themeColor, fontWeight: FontWeight.bold)),
+                  radius: 22,
+                  backgroundColor: widget.themeColor.withOpacity(0.15),
+                  child: Text(
+                    widget.ngoName[0].toUpperCase(),
+                    style: TextStyle(
+                      color: widget.themeColor,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 18
+                    ),
+                  ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(widget.ngoName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      Text(formattedDate, style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+                      Text(
+                        widget.ngoName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15.5,
+                          letterSpacing: 0.2,
+                          color: Colors.black87
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        formattedDate,
+                        style: TextStyle(
+                          color: Colors.grey.shade500,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600
+                        ),
+                      ),
                     ],
                   ),
                 ),
                 if (isMyPost)
                   PopupMenuButton<String>(
-                    icon: Icon(Icons.more_vert, color: Colors.grey.shade600),
+                    icon: Icon(Icons.more_horiz, color: Colors.grey.shade600),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     onSelected: (value) {
                       if (value == 'edit') _editPost();
                       if (value == 'delete') _deletePost();
                     },
                     itemBuilder: (BuildContext context) => [
-                      const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 20), SizedBox(width: 8), Text('Edit')])),
-                      const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, size: 20, color: Colors.red), SizedBox(width: 8), Text('Delete', style: TextStyle(color: Colors.red))])),
+                      const PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit_rounded, size: 20, color: Colors.black87),
+                            SizedBox(width: 12),
+                            Text('Edit', style: TextStyle(fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete_rounded, size: 20, color: Colors.redAccent),
+                            SizedBox(width: 12),
+                            Text('Delete', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
               ],
             ),
           ),
-          
+
           Container(
             width: double.infinity,
-            constraints: const BoxConstraints(maxHeight: 400),
-            color: Colors.grey.shade100,
+            constraints: const BoxConstraints(maxHeight: 380),
+            color: Colors.grey.shade50,
             child: Image.network(
-              widget.post.image, 
+              widget.post.image,
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) => const Padding(
                 padding: EdgeInsets.all(40.0),
@@ -286,40 +563,80 @@ class _PostCardWidgetState extends State<PostCardWidget> {
           ),
 
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.only(left: 16, right: 16, top: 14, bottom: 8),
             child: Row(
               children: [
                 GestureDetector(
                   onTap: _toggleLike,
-                  child: Icon(
-                    _isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded, 
-                    size: 28, 
-                    color: _isLiked ? Colors.red : Colors.grey.shade800,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    transitionBuilder: (Widget child, Animation<double> animation) {
+                      return ScaleTransition(scale: animation, child: child);
+                    },
+                    child: Icon(
+                      _isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                      key: ValueKey<bool>(_isLiked),
+                      size: 30,
+                      color: _isLiked ? const Color(0xFFE63946) : Colors.grey.shade800,
+                    ),
                   ),
+                ),
+                const SizedBox(width: 18),
+                
+                GestureDetector(
+                  onTap: _isSharing ? null : _sharePost,
+                  child: _isSharing
+                      ? SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(
+                            color: widget.themeColor,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : Icon(
+                          Icons.send_rounded,
+                          size: 28,
+                          color: Colors.grey.shade800,
+                        ),
                 ),
               ],
             ),
           ),
 
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.only(left: 16, right: 16, bottom: 20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("${widget.post.likes} likes", style: const TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 6),
+                Text(
+                  "${widget.post.likes} likes",
+                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5),
+                ),
+                const SizedBox(height: 8),
                 RichText(
                   text: TextSpan(
-                    style: const TextStyle(color: Colors.black87, fontSize: 14),
+                    style: const TextStyle(color: Colors.black87, fontSize: 14.5, height: 1.4),
                     children: [
-                      TextSpan(text: "${widget.ngoName} ", style: const TextStyle(fontWeight: FontWeight.bold)),
-                      if (widget.post.donorId.isNotEmpty) 
-                        TextSpan(text: "${widget.post.donorId} ", style: TextStyle(color: widget.themeColor, fontWeight: FontWeight.bold)),
-                      TextSpan(text: widget.post.description),
+                      TextSpan(
+                        text: "${widget.ngoName} ",
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      if (widget.post.donorId.isNotEmpty)
+                        TextSpan(
+                          text: "${widget.post.donorId} ",
+                          style: TextStyle(
+                            color: widget.themeColor,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      TextSpan(
+                        text: widget.post.description,
+                        style: const TextStyle(fontWeight: FontWeight.w400)
+                      ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
               ],
             ),
           ),

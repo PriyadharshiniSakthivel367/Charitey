@@ -30,7 +30,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
+  record: ^6.2.1
+  permission_handler: ^12.0.1
+  url_launcher: ^6.2.0
+  
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
@@ -40,9 +43,16 @@ dependencies:
   firebase_messaging: ^16.1.2
   firebase_storage: ^13.1.0
   provider: ^6.1.5+1
-  google_sign_in: ^6.2.1
+  google_sign_in: ^7.2.0
   image_picker: ^1.2.1
+  file_picker: ^8.0.0
   intl: ^0.20.2
+  share_plus: ^10.1.3
+  path_provider: ^2.1.5
+  http: ^1.6.0
+  google_fonts: ^6.2.1
+  shared_preferences: ^2.2.3
+  
 
 dev_dependencies:
   flutter_test:
@@ -72,6 +82,7 @@ flutter:
   assets:
     - assets/
 
+
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 
@@ -97,3 +108,11 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+fonts:
+  - family: Poppins
+    fonts:
+      - asset: assets/fonts/Poppins-SemiBold.ttf
+
+  - family: PlayfairDisplay
+    fonts:
+      - asset: assets/fonts/PlayfairDisplay-BoldItalic.ttf

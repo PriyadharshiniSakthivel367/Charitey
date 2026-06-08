@@ -218,7 +218,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         liveUntil: DateTime.now().add(const Duration(days: 1)),
         createdAt: DateTime.now(),
         status: 'open',
-        isVolunteerAvailable: _isVolunteerAvailable, // <-- NEW DATA PASSED HERE
+        isVolunteerAvailable: _isVolunteerAvailable, 
       );
 
       await _firestoreService.createNgoListing(newListing);
@@ -237,7 +237,6 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         ),
       );
 
-      // Safe Navigation instead of pop()
       _navigateSafelyHome();
 
     } catch (e) {
@@ -253,7 +252,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     }
   }
 
-  // SMART AUTOCOMPLETE BUILDER
+  // PREMIUM AUTOCOMPLETE BUILDER
   Widget _buildAutocompleteField({
     required TextEditingController controller,
     required String hintText,
@@ -289,26 +288,28 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
           controller: fieldTextEditingController,
           focusNode: fieldFocusNode,
           enabled: isEnabled,
+          style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87),
           decoration: InputDecoration(
             hintText: hintText,
+            hintStyle: TextStyle(color: Colors.grey.shade400, fontWeight: FontWeight.w500),
             filled: true,
-            fillColor: isEnabled ? Colors.white : Colors.grey.shade50,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            fillColor: isEnabled ? Colors.white.withOpacity(0.9) : Colors.white.withOpacity(0.5),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide.none,
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide.none,
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: themeColor),
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: themeColor.withOpacity(0.5), width: 1.5),
             ),
             disabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade200),
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide.none,
             ),
           ),
         );
@@ -317,17 +318,18 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         return Align(
           alignment: Alignment.topLeft,
           child: Material(
-            elevation: 4.0,
-            borderRadius: BorderRadius.circular(12),
+            elevation: 8.0,
+            shadowColor: themeColor.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(16),
             child: Container(
-              width: MediaQuery.of(context).size.width - 32,
-              constraints: const BoxConstraints(maxHeight: 200),
+              width: MediaQuery.of(context).size.width - 64, // Adjusted for new card padding
+              constraints: const BoxConstraints(maxHeight: 220),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
               ),
               child: ListView.builder(
-                padding: EdgeInsets.zero,
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 shrinkWrap: true,
                 itemCount: options.length,
                 itemBuilder: (BuildContext context, int index) {
@@ -337,8 +339,8 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                       onSelected(option);
                     },
                     child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Text(option),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      child: Text(option, style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87)),
                     ),
                   );
                 },
@@ -352,326 +354,422 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: false,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 22, color: Colors.black87),
-          onPressed: _navigateSafelyHome,
-        ),
-        title: const Text(
-          "Create Request",
-          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
+    return Container(
+      // 1. THE ELEGANT DUSKY ROSE GRADIENT BACKGROUND
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Color(0xFFFDF7F8), // Very soft, almost white top-left
+            Color(0xFFEEDAE0), // Elegant dusky rose shade bottom-right
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          stops: [0.1, 1.0],
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      child: Scaffold(
+        backgroundColor: Colors.transparent, // Ensures gradient shows through
+        appBar: AppBar(
+          backgroundColor: Colors.transparent, 
+          elevation: 0,
+          centerTitle: false,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 22, color: Colors.black87),
+            onPressed: _navigateSafelyHome,
+          ),
+          title: const Text(
+            "Create Request",
+            style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w900, fontSize: 22),
+          ),
+        ),
+        extendBodyBehindAppBar: true, 
+        body: Stack(
           children: [
-            // --- TOP TOGGLE BUTTONS ---
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.grey.shade200,
-                borderRadius: BorderRadius.circular(30),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: _isStep1 ? () {
-                        setState(() {
-                          _listingType = 'food';
-                        });
-                      } : null, 
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          color: _listingType == 'food' ? themeColor : Colors.transparent,
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        child: Center(
-                          child: Text(
-                            "Food Registration",
-                            style: TextStyle(
-                              color: _listingType == 'food' ? Colors.white : Colors.grey.shade600,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
+            // 2. THE AMBIENT AURORA GLOW (Layered over the gradient)
+            Positioned(
+              top: -100,
+              left: -100,
+              child: Container(
+                width: 350,
+                height: 350,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      themeColor.withOpacity(0.12), // Subtle deep rose center
+                      Colors.transparent,           // Fades out smoothly
+                    ],
+                    stops: const [0.0, 1.0],
                   ),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: _isStep1 ? () {
-                        setState(() {
-                          _listingType = 'product';
-                        });
-                      } : null, 
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          color: _listingType == 'product' ? themeColor : Colors.transparent,
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        child: Center(
-                          child: Text(
-                            "Product Request",
-                            style: TextStyle(
-                              color: _listingType == 'product' ? Colors.white : Colors.grey.shade600,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
 
-            const SizedBox(height: 30),
+            // 3. MAIN SCROLLABLE CONTENT
+            SafeArea(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 10),
 
-            // --- NAME / CATEGORY (Step 1) ---
-            if (_listingType == 'food') ...[
-              _buildAutocompleteField(
-                controller: _foodTypeController,
-                hintText: "Food Type (e.g., Rice, Meals)",
-                suggestions: _foodSuggestions,
-                isEnabled: _isStep1, 
-              ),
-            ] else ...[
-              Opacity(
-                opacity: _isStep1 ? 1.0 : 0.5,
-                child: IgnorePointer(
-                  ignoring: !_isStep1,
-                  child: CustomTextField(
-                    controller: _categoryController,
-                    hintText: "Category (Clothes, Books)",
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              _buildAutocompleteField(
-                controller: _productNameController,
-                hintText: "Product Name",
-                suggestions: _productSuggestions,
-                isEnabled: _isStep1,
-              ),
-            ],
-
-            const SizedBox(height: 20),
-
-            // --- NEXT BUTTON ---
-            if (_isStep1)
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _goToNextStep,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: themeColor,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text("Next", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                ),
-              ),
-
-            // --- DETAILS & PUBLISH (Expanded when Next is clicked) ---
-            AnimatedSize(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              child: _isStep1 ? const SizedBox.shrink() : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  
-                  // Edit Details Button
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton.icon(
-                      onPressed: () {
-                        setState(() {
-                          _isStep1 = true; // Go back to edit name
-                        });
-                      },
-                      icon: Icon(Icons.edit, size: 16, color: themeColor),
-                      label: Text("Edit Details", style: TextStyle(color: themeColor, fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-
-                  if (_listingType == 'food')
-                    Row(
-                      children: [
-                        Expanded(
-                          flex: 2,
-                          child: CustomTextField(
-                            controller: _quantityController,
-                            hintText: "Quantity",
-                            keyboardType: TextInputType.number,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          flex: 1,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                    // 4. THE FLOATING GLASS FORM CARD
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.95), // Slight transparency for a premium feel
+                        borderRadius: BorderRadius.circular(32),
+                        boxShadow: [
+                          BoxShadow(
+                            color: themeColor.withOpacity(0.08),
+                            blurRadius: 24,
+                            offset: const Offset(0, 10),
+                          )
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          
+                          // --- TOP TOGGLE BUTTONS ---
+                          Container(
+                            padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.grey.shade300),
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(30),
                             ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                value: _unit,
-                                isExpanded: true,
-                                icon: const Icon(Icons.arrow_drop_down),
-                                items: ['kg', 'packs', 'members'].map((value) {
-                                  return DropdownMenuItem(
-                                    value: value,
-                                    child: Text(value),
-                                  );
-                                }).toList(),
-                                onChanged: (value) {
-                                  setState(() {
-                                    _unit = value!;
-                                  });
-                                },
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: _isStep1 ? () {
+                                      setState(() {
+                                        _listingType = 'food';
+                                      });
+                                    } : null, 
+                                    child: AnimatedContainer(
+                                      duration: const Duration(milliseconds: 250),
+                                      padding: const EdgeInsets.symmetric(vertical: 14),
+                                      decoration: BoxDecoration(
+                                        color: _listingType == 'food' ? themeColor : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(30),
+                                        boxShadow: _listingType == 'food' ? [
+                                          BoxShadow(color: themeColor.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))
+                                        ] : [],
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          "Food",
+                                          style: TextStyle(
+                                            color: _listingType == 'food' ? Colors.white : Colors.grey.shade600,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: _isStep1 ? () {
+                                      setState(() {
+                                        _listingType = 'product';
+                                      });
+                                    } : null, 
+                                    child: AnimatedContainer(
+                                      duration: const Duration(milliseconds: 250),
+                                      padding: const EdgeInsets.symmetric(vertical: 14),
+                                      decoration: BoxDecoration(
+                                        color: _listingType == 'product' ? themeColor : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(30),
+                                        boxShadow: _listingType == 'product' ? [
+                                          BoxShadow(color: themeColor.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))
+                                        ] : [],
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          "Product",
+                                          style: TextStyle(
+                                            color: _listingType == 'product' ? Colors.white : Colors.grey.shade600,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+              
+                          const SizedBox(height: 30),
+              
+                          // --- NAME / CATEGORY (Step 1) ---
+                          if (_listingType == 'food') ...[
+                            _buildAutocompleteField(
+                              controller: _foodTypeController,
+                              hintText: "Food Type (e.g., Rice, Meals)",
+                              suggestions: _foodSuggestions,
+                              isEnabled: _isStep1, 
+                            ),
+                          ] else ...[
+                            Opacity(
+                              opacity: _isStep1 ? 1.0 : 0.5,
+                              child: IgnorePointer(
+                                ignoring: !_isStep1,
+                                // Standardizing CustomTextField to match new look
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(16)
+                                  ),
+                                  child: CustomTextField(
+                                    controller: _categoryController,
+                                    hintText: "Category (Clothes, Books)",
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
-                        )
-                      ],
-                    ),
-
-                  if (_listingType == 'food') const SizedBox(height: 16),
-
-                  // --- INTERACTIVE DATE/TIME FIELD ---
-                  TextFormField(
-                    controller: _availabilityController,
-                    readOnly: true, 
-                    onTap: () => _selectDateTime(context), 
-                    decoration: InputDecoration(
-                      hintText: "dd-mm-yyyy  --:--",
-                      filled: true,
-                      fillColor: Colors.white,
-                      suffixIcon: Icon(Icons.calendar_month_outlined, color: Colors.grey.shade700, size: 20),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: themeColor),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Image Preview
-                  if (_selectedImage != null || _webImage != null) ...[
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: kIsWeb
-                          ? Image.memory(
-                              _webImage!,
-                              height: 180,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                            )
-                          : Image.file(
-                              _selectedImage!,
-                              height: 180,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
+                            const SizedBox(height: 16),
+                            _buildAutocompleteField(
+                              controller: _productNameController,
+                              hintText: "Product Name",
+                              suggestions: _productSuggestions,
+                              isEnabled: _isStep1,
                             ),
+                          ],
+              
+                          const SizedBox(height: 25),
+              
+                          // --- NEXT BUTTON ---
+                          if (_isStep1)
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: _goToNextStep,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: themeColor,
+                                  padding: const EdgeInsets.symmetric(vertical: 18),
+                                  elevation: 4,
+                                  shadowColor: themeColor.withOpacity(0.4),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                ),
+                                child: const Text("Continue", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 0.5)),
+                              ),
+                            ),
+              
+                          // --- DETAILS & PUBLISH (Expanded when Next is clicked) ---
+                          AnimatedSize(
+                            duration: const Duration(milliseconds: 400),
+                            curve: Curves.fastOutSlowIn,
+                            child: _isStep1 ? const SizedBox.shrink() : Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                
+                                // Edit Details Button
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: TextButton.icon(
+                                    onPressed: () {
+                                      setState(() {
+                                        _isStep1 = true; // Go back to edit name
+                                      });
+                                    },
+                                    icon: Icon(Icons.edit_rounded, size: 16, color: themeColor),
+                                    label: Text("Edit Selection", style: TextStyle(color: themeColor, fontWeight: FontWeight.w800)),
+                                  ),
+                                ),
+                                const SizedBox(height: 5),
+              
+                                if (_listingType == 'food')
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        flex: 2,
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey.shade50,
+                                            borderRadius: BorderRadius.circular(16)
+                                          ),
+                                          child: CustomTextField(
+                                            controller: _quantityController,
+                                            hintText: "Quantity",
+                                            keyboardType: TextInputType.number,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        flex: 1,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey.shade50,
+                                            borderRadius: BorderRadius.circular(16),
+                                          ),
+                                          child: DropdownButtonHideUnderline(
+                                            child: DropdownButton<String>(
+                                              value: _unit,
+                                              isExpanded: true,
+                                              icon: Icon(Icons.keyboard_arrow_down_rounded, color: themeColor),
+                                              style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87, fontSize: 15),
+                                              items: ['kg', 'packs', 'members'].map((value) {
+                                                return DropdownMenuItem(
+                                                  value: value,
+                                                  child: Text(value),
+                                                );
+                                              }).toList(),
+                                              onChanged: (value) {
+                                                setState(() {
+                                                  _unit = value!;
+                                                });
+                                              },
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                    ],
+                                  ),
+              
+                                if (_listingType == 'food') const SizedBox(height: 16),
+              
+                                // --- INTERACTIVE DATE/TIME FIELD ---
+                                TextFormField(
+                                  controller: _availabilityController,
+                                  readOnly: true, 
+                                  onTap: () => _selectDateTime(context), 
+                                  style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87),
+                                  decoration: InputDecoration(
+                                    hintText: "Select Date & Time",
+                                    hintStyle: TextStyle(color: Colors.grey.shade400, fontWeight: FontWeight.w500),
+                                    filled: true,
+                                    fillColor: Colors.grey.shade50,
+                                    suffixIcon: Icon(Icons.calendar_month_rounded, color: themeColor, size: 22),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                      borderSide: BorderSide(color: themeColor.withOpacity(0.5), width: 1.5),
+                                    ),
+                                  ),
+                                ),
+              
+                                const SizedBox(height: 24),
+              
+                                // Image Preview
+                                if (_selectedImage != null || _webImage != null) ...[
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: kIsWeb
+                                        ? Image.memory(
+                                            _webImage!,
+                                            height: 200,
+                                            width: double.infinity,
+                                            fit: BoxFit.cover,
+                                          )
+                                        : Image.file(
+                                            _selectedImage!,
+                                            height: 200,
+                                            width: double.infinity,
+                                            fit: BoxFit.cover,
+                                          ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                ],
+              
+                                // Image Upload Button
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed: _pickImage,
+                                    icon: Icon(Icons.add_photo_alternate_rounded, color: themeColor),
+                                    label: Text(_selectedImage != null || _webImage != null ? "Change Image" : "Add Reference Image", style: TextStyle(color: themeColor, fontWeight: FontWeight.w800, fontSize: 15)),
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                      backgroundColor: themeColor.withOpacity(0.05),
+                                      side: BorderSide(color: themeColor.withOpacity(0.3), width: 1.5),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                    ),
+                                  ),
+                                ),
+              
+                                const SizedBox(height: 35),
+              
+                                // --- VOLUNTEER SELECTION TOGGLE ---
+                                const Text(
+                                  "Do you need a volunteer for pickup?",
+                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.black87),
+                                ),
+                                const SizedBox(height: 16),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: GestureDetector(
+                                        onTap: () => setState(() => _isVolunteerAvailable = true),
+                                        child: AnimatedContainer(
+                                          duration: const Duration(milliseconds: 200),
+                                          padding: const EdgeInsets.symmetric(vertical: 16),
+                                          decoration: BoxDecoration(
+                                            color: _isVolunteerAvailable == true ? themeColor : Colors.grey.shade50,
+                                            borderRadius: BorderRadius.circular(16),
+                                            boxShadow: _isVolunteerAvailable == true ? [BoxShadow(color: themeColor.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))] : [],
+                                          ),
+                                          child: Center(
+                                            child: Text("Yes, I do", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: _isVolunteerAvailable == true ? Colors.white : Colors.grey.shade600)),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: GestureDetector(
+                                        onTap: () => setState(() => _isVolunteerAvailable = false),
+                                        child: AnimatedContainer(
+                                          duration: const Duration(milliseconds: 200),
+                                          padding: const EdgeInsets.symmetric(vertical: 16),
+                                          decoration: BoxDecoration(
+                                            color: _isVolunteerAvailable == false ? themeColor : Colors.grey.shade50,
+                                            borderRadius: BorderRadius.circular(16),
+                                            boxShadow: _isVolunteerAvailable == false ? [BoxShadow(color: themeColor.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))] : [],
+                                          ),
+                                          child: Center(
+                                            child: Text("No, I'll handle it", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: _isVolunteerAvailable == false ? Colors.white : Colors.grey.shade600)),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+              
+                                const SizedBox(height: 45),
+              
+                                // Publish Button
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: CustomButton(
+                                    text: "Publish Request",
+                                    isLoading: _isLoading,
+                                    onPressed: _createListing,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 12),
                   ],
-
-                  // Image Upload Button
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: _pickImage,
-                      icon: Icon(Icons.add_photo_alternate_outlined, color: themeColor),
-                      label: Text(_selectedImage != null || _webImage != null ? "Change Image" : "Upload Image", style: TextStyle(color: themeColor, fontWeight: FontWeight.bold)),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        side: BorderSide(color: themeColor),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 30),
-
-                  // --- VOLUNTEER SELECTION TOGGLE ---
-                  const Text(
-                    "Volunteer Available?",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => setState(() => _isVolunteerAvailable = true),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            decoration: BoxDecoration(
-                              color: _isVolunteerAvailable == true ? themeColor : Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: _isVolunteerAvailable == true ? themeColor : Colors.grey.shade300),
-                              boxShadow: _isVolunteerAvailable == true ? [BoxShadow(color: themeColor.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 3))] : [],
-                            ),
-                            child: Center(
-                              child: Text("Yes ✅", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: _isVolunteerAvailable == true ? Colors.white : Colors.black87)),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => setState(() => _isVolunteerAvailable = false),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            decoration: BoxDecoration(
-                              color: _isVolunteerAvailable == false ? themeColor : Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: _isVolunteerAvailable == false ? themeColor : Colors.grey.shade300),
-                              boxShadow: _isVolunteerAvailable == false ? [BoxShadow(color: themeColor.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 3))] : [],
-                            ),
-                            child: Center(
-                              child: Text("No ❌", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: _isVolunteerAvailable == false ? Colors.white : Colors.black87)),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 40),
-
-                  // Publish Button
-                  CustomButton(
-                    text: "Publish Listing",
-                    isLoading: _isLoading,
-                    onPressed: _createListing,
-                  ),
-                  const SizedBox(height: 20),
-                ],
+                ),
               ),
             ),
           ],

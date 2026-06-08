@@ -9,6 +9,9 @@ import 'providers/auth_provider.dart';
 import 'services/notification_service.dart';
 import 'package:flutter/foundation.dart';
 
+// --- FIX 1: Removed the underscore from HomeScreenState ---
+final GlobalKey<HomeScreenState> homeScreenKey = GlobalKey<HomeScreenState>();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
@@ -75,6 +78,7 @@ class AuthWrapper extends StatelessWidget {
     } 
     
     // 3. Go Home
-    return const HomeScreen();
+    // --- FIX 2: Attach the GlobalKey to the HomeScreen! ---
+    return HomeScreen(key: homeScreenKey); 
   }
 }

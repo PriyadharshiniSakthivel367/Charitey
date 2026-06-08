@@ -1,12 +1,13 @@
 class UserModel {
   final String uid;
   final String name;
+  final String username; // <-- NEW: Unique username field
   final String phone;
   final String email;
   final String role; // user / ngo / volunteer / travel_agency
   final String location;
   final String profileImage;
-  final String license; // <-- ADDED THIS FOR YOUR FRIEND'S CODE
+  final String license; 
   final DateTime createdAt;
   final int donationsCount;
   final int postsCount;
@@ -14,12 +15,13 @@ class UserModel {
   UserModel({
     required this.uid,
     required this.name,
+    this.username = '', // <-- NEW
     required this.phone,
     required this.email,
     required this.role,
     required this.location,
     required this.profileImage,
-    this.license = '', // <-- DEFAULT VALUE
+    this.license = '', 
     required this.createdAt,
     this.donationsCount = 0,
     this.postsCount = 0,
@@ -29,12 +31,13 @@ class UserModel {
     return {
       'uid': uid,
       'name': name,
+      'username': username, // <-- NEW
       'phone': phone,
       'email': email,
       'role': role,
       'location': location,
       'profileImage': profileImage,
-      'license': license, // <-- SAVES TO FIREBASE
+      'license': license, 
       'createdAt': createdAt.toIso8601String(),
       'donationsCount': donationsCount,
       'postsCount': postsCount,
@@ -45,12 +48,13 @@ class UserModel {
     return UserModel(
       uid: documentId,
       name: map['name'] ?? '',
+      username: map['username'] ?? '', // <-- NEW
       phone: map['phone'] ?? '',
       email: map['email'] ?? '',
       role: map['role'] ?? 'user',
       location: map['location'] ?? '',
       profileImage: map['profileImage'] ?? '',
-      license: map['license'] ?? '', // <-- READS FROM FIREBASE
+      license: map['license'] ?? '', 
       createdAt: map['createdAt'] != null
           ? DateTime.parse(map['createdAt'])
           : DateTime.now(),
