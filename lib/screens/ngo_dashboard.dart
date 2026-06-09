@@ -185,28 +185,35 @@ class _NgoDashboardState extends State<NgoDashboard> with TickerProviderStateMix
         ],
       ),
 
-      floatingActionButton: user.role == 'ngo'
-          ? FloatingActionButton(
-              backgroundColor: themeColor,
-              elevation: 6,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
+     floatingActionButton: user.role == 'ngo'
+    ? Padding(
+        padding: const EdgeInsets.only(bottom: 90),
+        child: FloatingActionButton(
+          backgroundColor: themeColor,
+          elevation: 6,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const CreatePostScreen(),
               ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const CreatePostScreen()),
-                );
-              },
-              child: const Icon(
-                Icons.add_rounded,
-                color: Colors.white,
-                size: 32,
-              ),
-            )
-          : null,
-    );
-  }
+            );
+          },
+          child: const Icon(
+            Icons.add_rounded,
+            color: Colors.white,
+            size: 32,
+          ),
+        ),
+      )
+    : null,
+floatingActionButtonLocation:
+    FloatingActionButtonLocation.endFloat,
+);
+}
 
   Widget _buildEmptyState(String? role) {
     return Center(

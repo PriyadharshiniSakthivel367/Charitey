@@ -1,3 +1,4 @@
+//donor_register_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -55,7 +56,7 @@ class _DonorRegisterScreenState extends State<DonorRegisterScreen> {
       password: password,
       phone: '', 
       location: '',
-      role: 'user', 
+      role: 'donor', 
     );
 
     if (!context.mounted) return;
@@ -63,7 +64,7 @@ class _DonorRegisterScreenState extends State<DonorRegisterScreen> {
     if (success) {
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const ProfileSetupScreen(role: 'user')),
+        MaterialPageRoute(builder: (_) => const ProfileSetupScreen(role: 'donor')),
         (route) => false,
       );
     } else {

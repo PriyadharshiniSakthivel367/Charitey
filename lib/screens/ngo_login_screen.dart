@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+//ngo_login_screen.dart
+ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'ngo_register_screen.dart'; 
@@ -38,7 +39,7 @@ class _NgoLoginScreenState extends State<NgoLoginScreen> {
       return;
     }
 
-    bool success = await authProvider.signIn(email, password);
+    bool success = await authProvider.signInWithRole(email, password, 'ngo');
 
     if (!context.mounted) return;
 
@@ -51,7 +52,7 @@ class _NgoLoginScreenState extends State<NgoLoginScreen> {
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login failed. Please check your credentials.')),
+        const SnackBar(content: Text('Invalid credentials or this account is not registered as an NGO')),
       );
     }
   }
@@ -205,7 +206,7 @@ class _NgoLoginScreenState extends State<NgoLoginScreen> {
                               ),
                             ),
                             onPressed: () async {
-                              bool success = await authProvider.signInWithGoogle();
+                              bool success = await authProvider.signInWithGoogle(expectedRole: 'ngo');
                               if (!context.mounted) return;
 
                               if (success) {
@@ -216,7 +217,7 @@ class _NgoLoginScreenState extends State<NgoLoginScreen> {
                                 );
                               } else {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text("Google sign in failed. Please try again.")),
+                                  const SnackBar(content: Text("This account is registered as Donor or Volunteer, not NGO. Please use the appropriate login or check your credentials.")),
                                 );
                               }
                             },

@@ -1,3 +1,4 @@
+//travel_agency_login_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -39,7 +40,7 @@ class _TravelAgencyLoginScreenState extends State<TravelAgencyLoginScreen> {
       return;
     }
 
-    bool success = await authProvider.signIn(email, password);
+    bool success = await authProvider.signInWithRole(email, password, 'travel_agency');
 
     if (!context.mounted) return;
 
@@ -206,7 +207,7 @@ class _TravelAgencyLoginScreenState extends State<TravelAgencyLoginScreen> {
                               ),
                             ),
                             onPressed: () async {
-                              bool success = await authProvider.signInWithGoogle();
+                              bool success = await authProvider.signInWithGoogle(expectedRole: 'travel_agency');
                               if (!context.mounted) return;
 
                               if (success) {

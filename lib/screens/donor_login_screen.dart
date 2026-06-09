@@ -1,3 +1,4 @@
+//donor_login_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -38,7 +39,7 @@ class _DonorLoginScreenState extends State<DonorLoginScreen> {
       return;
     }
 
-    bool success = await authProvider.signIn(email, password);
+    bool success = await authProvider.signInWithRole(email, password,'donor',);
 
     if (!context.mounted) return;
 
@@ -51,7 +52,7 @@ class _DonorLoginScreenState extends State<DonorLoginScreen> {
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login failed. Please check your credentials.')),
+        const SnackBar(content: Text('Invalid credentials or this account is not registered as a Donor')),
       );
     }
   }
@@ -205,7 +206,7 @@ class _DonorLoginScreenState extends State<DonorLoginScreen> {
                               ),
                             ),
                             onPressed: () async {
-                              bool success = await authProvider.signInWithGoogle();
+                              bool success = await authProvider.signInWithGoogle(expectedRole: 'user',);
                               if (!context.mounted) return;
 
                               if (success) {
@@ -216,7 +217,7 @@ class _DonorLoginScreenState extends State<DonorLoginScreen> {
                                 );
                               } else {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text("Google sign in failed. Please try again.")),
+                                  const SnackBar(content: Text("This account is registered as NGO or Volunteer, not Donor. Please use the appropriate login or check your credentials.")),
                                 );
                               }
                             },
