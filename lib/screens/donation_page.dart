@@ -23,7 +23,7 @@ class _DonationPageState extends State<DonationPage> {
   final TextEditingController _phoneController = TextEditingController();
   bool _isLoading = false;
 
-  final Color themeColor = const Color(0xFF7D444C); // Matched to new darker theme
+  final Color themeColor = const Color(0xFF7D444C); // Dark theme palette configuration
 
   @override
   void initState() {
@@ -70,7 +70,9 @@ class _DonationPageState extends State<DonationPage> {
 
     try {
       String newDonationId = FirebaseFirestore.instance.collection('donations').doc().id;
+      String newNotificationId = FirebaseFirestore.instance.collection('notifications').doc().id;
 
+      // 1. Instantiating Donation record object payload
       DonationModel donation = DonationModel(
         donationId: newDonationId, 
         listingId: widget.listing.listingId,
@@ -83,16 +85,16 @@ class _DonationPageState extends State<DonationPage> {
         createdAt: DateTime.now(),
       );
 
-      await _firestoreService.processDonation(donation);
-
+      // Extract context metadata parsing for targeted notifications 
       String itemName = widget.listing.type == 'food' 
           ? (widget.listing.foodType ?? "Food") 
           : (widget.listing.productName ?? "Items");
 
+      // 2. Instantiating Alert record object payload
       NotificationModel alert = NotificationModel(
-        id: FirebaseFirestore.instance.collection('notifications').doc().id,
+        id: newNotificationId,
         receiverId: widget.listing.ngoId, 
-        senderId: user.uid,               
+        senderId: user.uid,              
         senderName: name,
         type: 'donation_offer',
         title: 'New Donation Offer! 🎉',
@@ -101,7 +103,11 @@ class _DonationPageState extends State<DonationPage> {
         createdAt: DateTime.now(),
       );
 
-      await _firestoreService.sendNotification(alert);
+      // 3. Dispatching processing task via consolidated single-transaction execution
+      await _firestoreService.processDonation(
+        donation: donation,
+        notification: alert,
+      );
 
       if (!mounted) return;
 
@@ -175,7 +181,7 @@ class _DonationPageState extends State<DonationPage> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Donation failed: $e')));
-    } finally {
+    } finally {  // <--- Changed 'final' to 'finally'
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -489,7 +495,7 @@ class _DonationPageState extends State<DonationPage> {
                             ),
                           ),
                           
-                          // Small security text
+                          // Small security configuration banner footer
                           Padding(
                             padding: const EdgeInsets.only(top: 12.0, bottom: 20.0),
                             child: Center(
