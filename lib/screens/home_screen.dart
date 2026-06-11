@@ -135,22 +135,39 @@ class HomeScreenState extends State<HomeScreen> {
         centerTitle: false,
         title: Row(
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.asset(
-                'assets/app_logo.png', 
-                height: 36,
-                width: 36,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    height: 36, width: 36, color: Colors.grey.shade200,
-                    child: const Icon(Icons.broken_image, size: 20),
-                  );
-                },
+            // Updated Logo Housing container for your circular Bird Logo setup
+            Container(
+              height: 40,
+              width: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20), // Keeps asset cleanly framed as a circular ring
+                child: Image.asset(
+                  'assets/dove_icon.png', 
+                  height: 40,
+                  width: 40,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      height: 40, 
+                      width: 40, 
+                      color: Colors.grey.shade200,
+                      child: const Icon(Icons.broken_image, size: 20),
+                    );
+                  },
+                ),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 12),
             const Text(
               "CHARITEY",
               style: TextStyle(color: Color(0xFF7D444C), fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1.2),
@@ -275,79 +292,73 @@ class HomeScreenState extends State<HomeScreen> {
       body: screens[_currentIndex],      
       
       // ================= PREMIUM ELEGANT FLOATING NAV BAR =================
-bottomNavigationBar: SafeArea(
-  child: Container(
-    margin: const EdgeInsets.only(left: 16, right: 16, bottom: 12), 
-    height: 70,
-    decoration: BoxDecoration(
-      color: Colors.white.withOpacity(0.9), // Slightly more opaque for better legibility
-      borderRadius: BorderRadius.circular(35),
-      border: Border.all(color: Colors.white, width: 1.5),
-      boxShadow: [
-        BoxShadow(
-          color: const Color(0xFF7D444C).withOpacity(0.12),
-          blurRadius: 20,
-          offset: const Offset(0, 8),
-        )
-      ],
-    ),
-    child: ClipRRect(
-      borderRadius: BorderRadius.circular(35),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: List.generate(navItems.length, (index) {
-            final item = navItems[index];
-            final icon = (item.icon as Icon).icon!;
-            // Use Outlined icons for a professional look
-            final outlinedIcon = icon.toString().contains('rounded') 
-                ? icon // Fallback
-                : icon; 
-            
-            final label = item.label ?? '';
-            final isActive = _currentIndex == index;
-            final themeColor = const Color(0xFF7D444C);
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          margin: const EdgeInsets.only(left: 16, right: 16, bottom: 12), 
+          height: 70,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.9), // Slightly more opaque for better legibility
+            borderRadius: BorderRadius.circular(35),
+            border: Border.all(color: Colors.white, width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF7D444C).withOpacity(0.12),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              )
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(35),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: List.generate(navItems.length, (index) {
+                  final item = navItems[index];
+                  final icon = (item.icon as Icon).icon!;
+                  final label = item.label ?? '';
+                  final isActive = _currentIndex == index;
+                  final themeColor = const Color(0xFF7D444C);
 
-            return Expanded(
-              child: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _currentIndex = index;
-                    if (index != 1) targetPostId = null; 
-                  });
-                },
-                behavior: HitTestBehavior.opaque,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      icon,
-                      // Subtle color: Active is ThemeColor, Inactive is a warm muted Taupe (not grey)
-                      color: isActive ? themeColor : themeColor.withOpacity(0.4),
-                      size: isActive ? 26 : 24,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      label,
-                      style: TextStyle(
-                        color: isActive ? themeColor : themeColor.withOpacity(0.4),
-                        fontSize: 10,
-                        fontWeight: isActive ? FontWeight.w800 : FontWeight.w500,
+                  return Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _currentIndex = index;
+                          if (index != 1) targetPostId = null; 
+                        });
+                      },
+                      behavior: HitTestBehavior.opaque,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            icon,
+                            color: isActive ? themeColor : themeColor.withOpacity(0.4),
+                            size: isActive ? 26 : 24,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            label,
+                            style: TextStyle(
+                              color: isActive ? themeColor : themeColor.withOpacity(0.4),
+                              fontSize: 10,
+                              fontWeight: isActive ? FontWeight.w800 : FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  );
+                }),
               ),
-            );
-          }),
+            ),
+          ),
         ),
       ),
-    ),
-  ),
-),
     );
-    }
+  }
 }
 
 // =========================================================================
@@ -412,7 +423,7 @@ class ChatListScreen extends StatelessWidget {
             }
 
             return ListView.builder(
-              padding: const EdgeInsets.only(top: 8, bottom: 100), // Ensures content isn't hidden behind the floating nav bar
+              padding: const EdgeInsets.only(top: 8, bottom: 100), 
               itemCount: chatPreviews.length,
               itemBuilder: (context, index) {
                 final preview = chatPreviews[index];
@@ -473,7 +484,7 @@ class ChatListScreen extends StatelessWidget {
 }
 
 // =========================================================================
-// 3. NEW POPUP MENU SCREENS
+// 3. POPUP MENU SCREENS
 // =========================================================================
 
 class AboutUsScreen extends StatelessWidget {

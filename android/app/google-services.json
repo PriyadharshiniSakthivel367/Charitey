@@ -1,3 +1,4 @@
+
 {
   "project_info": {
     "project_number": "400013147984",
@@ -14,6 +15,22 @@
       },
       "oauth_client": [
         {
+          "client_id": "400013147984-bvmqornoigtl8gm2ivaoscidsst3qpon.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.charity_app",
+            "certificate_hash": "ef3a634fe81bab5bd172eb12868c1e53cccbd832"
+          }
+        },
+        {
+          "client_id": "400013147984-vnklraq7bhls1u8rrsmmkucankiuhsvu.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.charity_app",
+            "certificate_hash": "7b2fba7456bd62f802ae82ac5357a338f6133f07"
+          }
+        },
+        {
           "client_id": "400013147984-fcvqsm2imuldoqn683itvvrif83f34a6.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -29,6 +46,13 @@
             {
               "client_id": "400013147984-fcvqsm2imuldoqn683itvvrif83f34a6.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "400013147984-6i3su7uviau0k4ks8ram24krbnrg18cc.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.charityApp"
+              }
             }
           ]
         }
