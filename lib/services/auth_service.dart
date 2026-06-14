@@ -2,6 +2,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -81,60 +82,74 @@ class AuthService {
   // the correct role. For login screens pass null — existing role is kept.
 
   Future<UserModel?> signInWithGoogle({String? assignRole}) async {
-    try {
-      // Sign out first so Google always shows the account picker
-      await _auth.signOut();
+  try {
+    final GoogleSignIn googleSignIn = GoogleSignIn();
 
-      GoogleAuthProvider googleProvider = GoogleAuthProvider();
+    await googleSignIn.signOut();
 
-      // Force "choose an account" screen every time
-      googleProvider.setCustomParameters({'prompt': 'select_account'});
+    final GoogleSignInAccount? googleUser =
+        await googleSignIn.signIn();
 
-      UserCredential result = await _auth.signInWithPopup(googleProvider);
-
-      User? user = result.user;
-
-      if (user != null) {
-        final docRef = _firestore.collection('users').doc(user.uid);
-        final doc = await docRef.get();
-
-        if (!doc.exists) {
-          // NEW USER — create Firestore document with the assigned role
-          // (defaults to 'user' if none provided, e.g. from login screen)
-          final role = assignRole ?? 'user';
-
-          UserModel newUser = UserModel(
-            uid: user.uid,
-            name: user.displayName ?? '',
-            phone: '',
-            email: user.email ?? '',
-            role: role,
-            location: '',
-            profileImage: user.photoURL ?? '',
-            createdAt: DateTime.now(),
-          );
-
-          await docRef.set(newUser.toMap());
-          return newUser;
-        } else {
-          // EXISTING USER — if assignRole is given, update their role
-          // (handles case where existing Google account re-registers as NGO etc.)
-          if (assignRole != null) {
-            await docRef.update({'role': assignRole});
-          }
-
-          final updatedDoc = await docRef.get();
-          return UserModel.fromMap(
-              updatedDoc.data() as Map<String, dynamic>, updatedDoc.id);
-        }
-      }
-    } catch (e) {
-      print('Google sign in error: $e');
+    if (googleUser == null) {
+      return null;
     }
 
-    return null;
+    final GoogleSignInAuthentication googleAuth =
+        await googleUser.authentication;
+
+    final AuthCredential credential =
+        GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+
+    UserCredential result =
+        await _auth.signInWithCredential(credential);
+
+    User? user = result.user;
+
+    if (user != null) {
+      final docRef =
+          _firestore.collection('users').doc(user.uid);
+
+      final doc = await docRef.get();
+
+      if (!doc.exists) {
+        final role = assignRole ?? 'user';
+
+        UserModel newUser = UserModel(
+          uid: user.uid,
+          name: user.displayName ?? '',
+          phone: '',
+          email: user.email ?? '',
+          role: role,
+          location: '',
+          profileImage: user.photoURL ?? '',
+          createdAt: DateTime.now(),
+        );
+
+        await docRef.set(newUser.toMap());
+
+        return newUser;
+      } else {
+        if (assignRole != null) {
+          await docRef.update({'role': assignRole});
+        }
+
+        final updatedDoc = await docRef.get();
+
+        return UserModel.fromMap(
+          updatedDoc.data() as Map<String, dynamic>,
+          updatedDoc.id,
+        );
+      }
+    }
+  } catch (e) {
+    print('Google Sign In Error: $e');
   }
 
+  return null;
+}
   // ================= SIGN OUT =================
 
   Future<void> signOut() async {
