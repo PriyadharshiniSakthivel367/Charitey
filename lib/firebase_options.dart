@@ -23,11 +23,20 @@ class DefaultFirebaseOptions {
       case TargetPlatform.android:
         return android;
       case TargetPlatform.iOS:
-        return ios;
+        throw UnsupportedError(
+          'DefaultFirebaseOptions have not been configured for ios - '
+          'you can reconfigure this by running the FlutterFire CLI again.',
+        );
       case TargetPlatform.macOS:
-        return macos;
+        throw UnsupportedError(
+          'DefaultFirebaseOptions have not been configured for macos - '
+          'you can reconfigure this by running the FlutterFire CLI again.',
+        );
       case TargetPlatform.windows:
-        return windows;
+        throw UnsupportedError(
+          'DefaultFirebaseOptions have not been configured for windows - '
+          'you can reconfigure this by running the FlutterFire CLI again.',
+        );
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -41,50 +50,20 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBHWLULoe19Cv-lTTHhxSkx-hkGFTMBoos',
-    appId: '1:400013147984:web:79dcdf7784d6f753833655',
-    messagingSenderId: '400013147984',
-    projectId: 'charitey-97f31',
-    authDomain: 'charitey-97f31.firebaseapp.com',
-    storageBucket: 'charitey-97f31.firebasestorage.app',
-    measurementId: 'G-D3QF7BT2RE',
+    apiKey: 'AIzaSyAQIj6th0aijxmeHmzkRGRekZPXhP63C08',
+    appId: '1:49324937832:web:2483eb7807d59da3a561dd',
+    messagingSenderId: '49324937832',
+    projectId: 'charitey-37ce8',
+    authDomain: 'charitey-37ce8.firebaseapp.com',
+    storageBucket: 'charitey-37ce8.firebasestorage.app',
+    measurementId: 'G-GG71PRX0JD',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBdmAN6V1bYBaSuEOB5CTtb13mzL36IO64',
-    appId: '1:400013147984:android:1bd105808bc78083833655',
-    messagingSenderId: '400013147984',
-    projectId: 'charitey-97f31',
-    storageBucket: 'charitey-97f31.firebasestorage.app',
-  );
-
-  static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyDFaGS7x18_-7McaCacqYMBNrKHZPVc6mI',
-    appId: '1:400013147984:ios:6a07fea4f7e08b36833655',
-    messagingSenderId: '400013147984',
-    projectId: 'charitey-97f31',
-    storageBucket: 'charitey-97f31.firebasestorage.app',
-    iosClientId: '400013147984-6i3su7uviau0k4ks8ram24krbnrg18cc.apps.googleusercontent.com',
-    iosBundleId: 'com.example.charityApp',
-  );
-
-  static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyDFaGS7x18_-7McaCacqYMBNrKHZPVc6mI',
-    appId: '1:400013147984:ios:6a07fea4f7e08b36833655',
-    messagingSenderId: '400013147984',
-    projectId: 'charitey-97f31',
-    storageBucket: 'charitey-97f31.firebasestorage.app',
-    iosClientId: '400013147984-6i3su7uviau0k4ks8ram24krbnrg18cc.apps.googleusercontent.com',
-    iosBundleId: 'com.example.charityApp',
-  );
-
-  static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyBHWLULoe19Cv-lTTHhxSkx-hkGFTMBoos',
-    appId: '1:400013147984:web:9db7735868d54790833655',
-    messagingSenderId: '400013147984',
-    projectId: 'charitey-97f31',
-    authDomain: 'charitey-97f31.firebaseapp.com',
-    storageBucket: 'charitey-97f31.firebasestorage.app',
-    measurementId: 'G-3SB7RYW91V',
+    apiKey: 'AIzaSyBn9Tsy76rP_uJ1uUntzx1sjnuByzy0utk',
+    appId: '1:49324937832:android:a09673ba5590f134a561dd',
+    messagingSenderId: '49324937832',
+    projectId: 'charitey-37ce8',
+    storageBucket: 'charitey-37ce8.firebasestorage.app',
   );
 }
