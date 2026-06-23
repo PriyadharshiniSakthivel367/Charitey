@@ -19,9 +19,12 @@ class NotificationService {
       print('User granted permission');
     }
 
-    // Get FCM Token
     final fCMToken = await _firebaseMessaging.getToken();
-    print('FCM Token: $fCMToken');
+
+print("================================");
+print("FCM TOKEN = $fCMToken");
+print("CURRENT USER = ${_auth.currentUser?.uid}");
+print("================================");
 
     if (fCMToken != null && _auth.currentUser != null) {
       // Save token to firestore for the current user
@@ -40,7 +43,6 @@ class NotificationService {
 
       if (message.notification != null) {
         print('Message also contained a notification: ${message.notification}');
-        // Here you would typically show a local notification using flutter_local_notifications
       }
     });
   }

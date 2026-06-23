@@ -5,13 +5,73 @@ import '../providers/auth_provider.dart';
 import '../services/firestore_service.dart';
 import '../models/notification_model.dart';
 import 'chat_screen.dart';
-import 'home_screen.dart'; // <-- IMPORTANT: Needed to navigate back to HomeScreen
+import 'home_screen.dart';
 
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({Key? key}) : super(key: key);
 
+  // --- PRIVATE HELPER TO FETCH REAL TIME DATA DYNAMICALLY ---
+  // This function fetches the specific request/donation data and joins the correct NGO or sender profiles from the 'users' collection.
+  Future<Map<String, dynamic>> _fetchDetailsData(NotificationModel notif, bool isDonationOffer, bool amINGO) async {
+    Map<String, dynamic> result = {};
+
+    try {
+      if (isDonationOffer) {
+        // 1. Fetch the specific donation request document
+        DocumentSnapshot donationSnap = await FirebaseFirestore.instance
+            .collection('donations')
+            .doc(notif.relatedItemId)
+            .get();
+
+        if (donationSnap.exists && donationSnap.data() != null) {
+          var donationData = donationSnap.data() as Map<String, dynamic>;
+          result['donationData'] = donationData;
+
+          // 2. If current user is the donor, fetch the specific requested NGO's profile
+          if (!amINGO) {
+            String? ngoId = donationData['ngoId'] ?? notif.receiverId;
+            if (ngoId != null && ngoId.isNotEmpty) {
+              DocumentSnapshot ngoSnap = await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(ngoId)
+                  .get();
+              if (ngoSnap.exists && ngoSnap.data() != null) {
+                result['ngoProfileData'] = ngoSnap.data() as Map<String, dynamic>;
+              }
+            }
+          }
+        }
+      } else {
+        // 3. For messages/tags, fetch the real-time sender profile details to prevent random or missing data
+        DocumentSnapshot senderSnap = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(notif.senderId)
+            .get();
+
+        if (senderSnap.exists && senderSnap.data() != null) {
+          result['senderProfileData'] = senderSnap.data() as Map<String, dynamic>;
+        }
+
+        DocumentSnapshot notifSnap = await FirebaseFirestore.instance
+            .collection('notifications')
+            .doc(notif.id)
+            .get();
+        if (notifSnap.exists && notifSnap.data() != null) {
+          result['notifData'] = notifSnap.data() as Map<String, dynamic>;
+        }
+      }
+    } catch (e) {
+      print("Error fetching dynamic notification details: $e");
+    }
+
+    return result;
+  }
+
   // --- SMART UNIFIED POPUP ---
   void _showRichDetailsPopup(BuildContext context, NotificationModel notif, Color themeColor, bool isDonationOffer) {
+    final currentUser = Provider.of<AuthProvider>(context, listen: false).currentUserModel;
+    bool amINGO = currentUser?.role == 'ngo';
+
     showDialog(
       context: context,
       builder: (context) {
@@ -28,50 +88,72 @@ class NotificationsScreen extends StatelessWidget {
               ),
             ],
           ),
-          content: FutureBuilder<DocumentSnapshot>(
-            future: isDonationOffer 
-                ? FirebaseFirestore.instance.collection('donations').doc(notif.relatedItemId).get()
-                : FirebaseFirestore.instance.collection('notifications').doc(notif.id).get(),
+          content: FutureBuilder<Map<String, dynamic>>(
+            future: _fetchDetailsData(notif, isDonationOffer, amINGO),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return SizedBox(height: 100, child: Center(child: CircularProgressIndicator(color: themeColor)));
               }
-              if (!snapshot.hasData || !snapshot.data!.exists) {
+              if (!snapshot.hasData || snapshot.data!.isEmpty) {
                 return const Text("Details no longer available.");
               }
               
-              var data = snapshot.data!.data() as Map<String, dynamic>;
+              var fetchedData = snapshot.data!;
               
-              // --- SMART LABEL LOGIC ---
-              bool isSenderNGO = false;
-              bool isSenderTravelAgency = false;
-              
-              if (!isDonationOffer) {
-                 isSenderNGO = data['senderRole'] == 'ngo';
-                 isSenderTravelAgency = data['senderRole'] == 'travel_agency'; 
-              }
+              String displayTitle = "";
+              String nameLabel = "";
+              String locationLabel = "";
+              String contactName = "";
+              String contactPhone = "";
+              String contactLocation = "";
+              String targetChatId = ""; 
 
-              // Determine correct labels based on role
-              String nameLabel = "Donor Name";
-              String locationLabel = "Donor Location";
-              
-              if (isSenderNGO) {
-                nameLabel = "Organization Name";
-                locationLabel = "Organization Location";
-              } else if (isSenderTravelAgency) {
-                nameLabel = "Travel Agency Name";
-                locationLabel = "Agency Location";
+              if (isDonationOffer) {
+                var donationData = fetchedData['donationData'] ?? {};
+                if (amINGO) {
+                  // NGO is looking at the offer -> Show Donor Details
+                  displayTitle = "Offered By:";
+                  nameLabel = "Donor Name";
+                  locationLabel = "Pickup Location";
+                  contactName = donationData['donorName'] ?? 'Unknown Donor';
+                  contactPhone = donationData['donorPhone'] ?? 'Unknown Phone';
+                  contactLocation = donationData['donorLocation'] ?? 'Unknown Location';
+                  targetChatId = donationData['donorId'] ?? notif.senderId; 
+                } else {
+                  // Donor is looking at their receipt -> Show specific created NGO details
+                  displayTitle = "Donating To:";
+                  nameLabel = "Organization Name";
+                  locationLabel = "Drop-off/NGO Location";
+                  
+                  var ngoProfile = fetchedData['ngoProfileData'] ?? {};
+                  
+                  // Dynamically resolves name, phone, and address from the exact NGO profile or fallback entries
+                  contactName = ngoProfile['ngoName'] ?? ngoProfile['name'] ?? donationData['ngoName'] ?? 'Unknown NGO'; 
+                  contactPhone = ngoProfile['phone'] ?? ngoProfile['ngoPhone'] ?? donationData['ngoPhone'] ?? 'Not Provided'; 
+                  contactLocation = ngoProfile['address'] ?? ngoProfile['location'] ?? donationData['ngoLocation'] ?? 'Not Provided';
+                  targetChatId = donationData['ngoId'] ?? notif.receiverId; 
+                }
+              } else {
+                // Standard Message/Tag Notification Logic
+                var senderProfile = fetchedData['senderProfileData'] ?? {};
+                var notifData = fetchedData['notifData'] ?? {};
+                
+                nameLabel = "Sender Name";
+                locationLabel = "Location";
+                contactName = senderProfile['name'] ?? senderProfile['ngoName'] ?? notif.senderName;
+                contactPhone = senderProfile['phone'] ?? notifData['senderPhone'] ?? 'Not Provided';
+                contactLocation = senderProfile['address'] ?? senderProfile['location'] ?? notifData['senderLocation'] ?? 'Not Provided';
+                targetChatId = notif.senderId;
               }
-
-              // Map the actual data
-              String contactName = isDonationOffer ? (data['donorName'] ?? notif.senderName) : notif.senderName;
-              String contactPhone = isDonationOffer ? (data['donorPhone'] ?? 'Unknown') : (data['senderPhone'] ?? 'Unknown');
-              String contactLocation = isDonationOffer ? (data['donorLocation'] ?? 'Unknown') : (data['senderLocation'] ?? 'Unknown');
               
               return Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (displayTitle.isNotEmpty) ...[
+                    Text(displayTitle, style: TextStyle(fontWeight: FontWeight.bold, color: themeColor, fontSize: 14)),
+                    const SizedBox(height: 8),
+                  ],
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
@@ -87,7 +169,6 @@ class NotificationsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 20),
                   
-                  // Use the Smart Labels!
                   _detailRow(Icons.person_outline, nameLabel, contactName, themeColor),
                   const SizedBox(height: 16),
                   _detailRow(Icons.phone_outlined, "Contact Number", contactPhone, themeColor),
@@ -99,12 +180,13 @@ class NotificationsScreen extends StatelessWidget {
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       onPressed: () {
-                        Navigator.pop(context);
+                        Navigator.pop(context); // Close the popup
+                        
                         Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (context) => ChatScreen(
-                              otherUserId: notif.senderId,
+                              otherUserId: targetChatId,
                               otherUserName: contactName,
                             ),
                           ),
@@ -112,7 +194,7 @@ class NotificationsScreen extends StatelessWidget {
                       },
                       icon: const Icon(Icons.chat_bubble_rounded),
                       label: Text(
-                        isDonationOffer ? "Start Chat with Donor" : "Open Chat", 
+                        isDonationOffer ? (amINGO ? "Accept & Chat with Donor" : "Chat with NGO") : "Open Chat", 
                         style: const TextStyle(fontWeight: FontWeight.bold)
                       ),
                       style: ElevatedButton.styleFrom(
@@ -133,7 +215,6 @@ class NotificationsScreen extends StatelessWidget {
     );
   }
 
-  // Helper widget for the rows
   Widget _detailRow(IconData icon, String label, String value, Color themeColor) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -150,7 +231,7 @@ class NotificationsScreen extends StatelessWidget {
             ],
           ),
         )
-      ]
+      ],
     );
   }
 
@@ -213,6 +294,7 @@ class NotificationsScreen extends StatelessWidget {
               final notif = notifications[index];
               bool isMessage = notif.type == 'new_message';
               bool isTag = notif.type == 'tag'; 
+              bool isDonationOffer = notif.type == 'donation_offer';
 
               return Container(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -254,25 +336,23 @@ class NotificationsScreen extends StatelessWidget {
                     decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
                   ),
                   onTap: () {
-                    // Mark as read no matter what
                     if (!notif.isRead) {
                       firestoreService.markNotificationAsRead(notif.id);
                     }
                     
-                    // --- BULLETPROOF FIX: Navigate with explicitly assigned tab ---
                     if (isTag) {
                       Navigator.pushAndRemoveUntil(
                         context,
                         MaterialPageRoute(
                           builder: (context) => HomeScreen(
-                            initialIndex: 1, // Force Tab 1 (Activity Feed)
-                            targetPostId: notif.relatedItemId, // Pass the Post ID to scroll to
+                            initialIndex: 1, 
+                            targetPostId: notif.relatedItemId, 
                           ),
                         ),
-                        (Route<dynamic> route) => false, // Clears the stack so they don't hit 'back' to nowhere
+                        (Route<dynamic> route) => false, 
                       );
                     } else {
-                      _showRichDetailsPopup(context, notif, themeColor, notif.type == 'donation_offer');
+                      _showRichDetailsPopup(context, notif, themeColor, isDonationOffer);
                     }
                   },
                 ),

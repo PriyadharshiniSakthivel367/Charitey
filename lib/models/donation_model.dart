@@ -10,6 +10,7 @@ class DonationModel {
   final String donorLocation;
   final String status; // pending / claimed / completed
   final DateTime createdAt;
+  final int donatedQuantity;
 
   DonationModel({
     required this.donationId,
@@ -21,6 +22,7 @@ class DonationModel {
     required this.donorLocation,
     required this.status,
     required this.createdAt,
+    required this.donatedQuantity,
   });
 
   Map<String, dynamic> toMap() {
@@ -34,6 +36,7 @@ class DonationModel {
       'donorLocation': donorLocation,
       'status': status,
       'createdAt': Timestamp.fromDate(createdAt),
+      'donatedQuantity': donatedQuantity,
     };
   }
 
@@ -47,6 +50,7 @@ class DonationModel {
       donorPhone: map['donorPhone'] ?? '',
       donorLocation: map['donorLocation'] ?? '',
       status: map['status'] ?? 'pending',
+      donatedQuantity: map['donatedQuantity'] ?? 0,
       createdAt: (map['createdAt'] as Timestamp).toDate(),
     );
   }

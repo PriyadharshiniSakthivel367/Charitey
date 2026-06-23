@@ -43,13 +43,22 @@ class FirestoreService {
     return _firestore
         .collection('ngo_listings')
         .where('ngoId', isEqualTo: ngoId)
-        .orderBy('createdAt', descending: true)
+        // Order handled via client runtime below to fully protect against composite index crash rules
         .snapshots()
         .map((snapshot) {
           print("NGO LISTINGS COUNT: ${snapshot.docs.length}");
-          return snapshot.docs
+          var docs = snapshot.docs
               .map((doc) => NgoListingModel.fromMap(doc.data(), doc.id))
               .toList();
+          
+          // Client side descending date ordering
+          docs.sort((a, b) {
+            final dateA = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+            final dateB = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+            return dateB.compareTo(dateA);
+          });
+          
+          return docs;
         });
   }
 
@@ -69,54 +78,76 @@ class FirestoreService {
   // --- DONATIONS LOGIC ---
   // ==========================================
 
-  // Process Donation (Transactional: Create donation, update listing, create volunteer request, and notify NGO)
+  // Process Donation (Transactional: Create donation, update listing quantities/status, create volunteer request, and notify NGO)
   Future<void> processDonation({
     required DonationModel donation,
     required NotificationModel notification,
-  }) async {
+  }) async { 
     try {
-      // Atomic Transaction block ensures data integrity across all 4 operations
-      await _firestore.runTransaction((transaction) async {
+      // One single comprehensive transaction handles all data interactions securely
+      await _firestore.runTransaction((transaction) async { 
         // Document References
-        DocumentReference listingRef = _firestore.collection('ngo_listings').doc(donation.listingId);
-        DocumentReference donationRef = _firestore.collection('donations').doc(donation.donationId);
-        DocumentReference notificationRef = _firestore.collection('notifications').doc(notification.id);
+        DocumentReference listingRef = _firestore.collection('ngo_listings').doc(donation.listingId); 
+        DocumentReference donationRef = _firestore.collection('donations').doc(donation.donationId); 
+        DocumentReference notificationRef = _firestore.collection('notifications').doc(notification.id); 
 
-        // a. Read listing to verify it's still open
-        DocumentSnapshot listingSnapshot = await transaction.get(listingRef);
-        if (!listingSnapshot.exists) {
-          throw Exception("Listing does not exist!");
+        // a. Read listing state within the safe window
+        DocumentSnapshot listingSnapshot = await transaction.get(listingRef); 
+        if (!listingSnapshot.exists) { 
+          throw Exception("Listing does not exist!"); 
         }
 
-        String currentStatus = listingSnapshot.get('status');
-        if (currentStatus != 'open') {
-          throw Exception("Listing has already been claimed.");
+        final data = listingSnapshot.data() as Map<String, dynamic>;
+        
+        // Safe extraction of status to prevent missing property errors
+        String currentStatus = data['status'] ?? 'open'; 
+        if (currentStatus == 'closed') { 
+          throw Exception("This request has already been fulfilled."); 
         }
 
-        // b. Write: Update listing status
-        transaction.update(listingRef, {'status': 'claimed'});
+        // b. Calculate fulfillment quantities handling safe num -> int evaluations
+        final int currentFulfilled = (data['fulfilledQuantity'] as num? ?? 0).toInt();
+        final int targetQuantity = (data['quantity'] as num? ?? 0).toInt();
+        final int remainingNow = targetQuantity - currentFulfilled;
 
-        // c. Write: Create donation record
-        transaction.set(donationRef, donation.toMap());
+        // Verify that another concurrent user hasn't fulfilled this listing mid-process
+        if (donation.donatedQuantity > remainingNow) {
+          throw Exception("Only $remainingNow item(s) are still needed.");
+        }
 
-        // d. Write: Auto-create a volunteer request for this donation
-        DocumentReference volunteerRequestRef = _firestore.collection('volunteer_requests').doc();
-        VolunteerRequestModel vRequest = VolunteerRequestModel(
-          requestId: volunteerRequestRef.id,
-          ngoId: donation.ngoId,
-          donorId: donation.donorId,
-          listingId: donation.listingId,
-          status: 'pending',
-          createdAt: DateTime.now(),
+        final int newFulfilled = currentFulfilled + donation.donatedQuantity;
+        String newStatus = 'open';
+        if (newFulfilled >= targetQuantity) {
+          newStatus = 'closed';
+        }
+
+        // c. Write: Apply balance modification updates safely to the listing document
+        transaction.update(listingRef, {
+          'fulfilledQuantity': newFulfilled,
+          'status': newStatus,
+        });
+
+        // d. Write: Create donation record
+        transaction.set(donationRef, donation.toMap()); 
+
+        // e. Write: Auto-create a volunteer request for this donation
+        DocumentReference volunteerRequestRef = _firestore.collection('volunteer_requests').doc(); 
+        VolunteerRequestModel vRequest = VolunteerRequestModel( 
+          requestId: volunteerRequestRef.id, 
+          ngoId: donation.ngoId, 
+          donorId: donation.donorId, 
+          listingId: donation.listingId, 
+          status: 'pending', 
+          createdAt: DateTime.now(), 
         );
-        transaction.set(volunteerRequestRef, vRequest.toMap());
+        transaction.set(volunteerRequestRef, vRequest.toMap()); 
 
-        // e. Write: Create notification record inside the same atomic window
-        transaction.set(notificationRef, notification.toMap());
+        // f. Write: Create notification record inside the transaction execution block
+        transaction.set(notificationRef, notification.toMap()); 
       });
-    } catch (e) {
-      print('Error processing transactional donation: $e');
-      rethrow;
+    } catch (e) { 
+      print('Error processing transactional donation: $e'); 
+      rethrow; 
     }
   }
 
@@ -125,12 +156,21 @@ class FirestoreService {
     return _firestore
         .collection('donations')
         .where('donorId', isEqualTo: donorId)
-        .orderBy('createdAt', descending: true)
+        // Query composite index safety optimization fallback applied below
         .snapshots()
         .map((snapshot) {
-          return snapshot.docs
+          var docs = snapshot.docs
               .map((doc) => DonationModel.fromMap(doc.data(), doc.id))
               .toList();
+
+          // Client side sorting fallback avoids configuration crash blocks completely
+          docs.sort((a, b) {
+            final dateA = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+            final dateB = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+            return dateB.compareTo(dateA);
+          });
+
+          return docs;
         });
   }
 
@@ -163,7 +203,11 @@ class FirestoreService {
               .toList();
 
           // Sort manually in client-side runtime to avoid Firestore index generation errors
-          docs.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          docs.sort((a, b) {
+            final dateA = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+            final dateB = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+            return dateB.compareTo(dateA);
+          });
 
           return docs;
         });

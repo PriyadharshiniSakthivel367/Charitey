@@ -11,6 +11,7 @@ class NgoListingModel {
 
   final String? foodType;
   final int? quantity;
+  final int? fulfilledQuantity; // <-- NEW: Tracks balance progression
   final String? unit;
 
   final String? category;
@@ -21,7 +22,7 @@ class NgoListingModel {
   final DateTime createdAt;
   final String status;
   
-  // --- NEW: Volunteer Availability Field ---
+  // --- Volunteer Availability Field ---
   final bool? isVolunteerAvailable; 
 
   NgoListingModel({
@@ -33,6 +34,7 @@ class NgoListingModel {
     this.imageUrl,
     this.foodType,
     this.quantity,
+    this.fulfilledQuantity, // <-- Added to constructor
     this.unit,
     this.category,
     this.productName,
@@ -40,7 +42,7 @@ class NgoListingModel {
     required this.liveUntil,
     required this.createdAt,
     required this.status,
-    this.isVolunteerAvailable, // <-- Added to constructor
+    this.isVolunteerAvailable, 
   });
 
   Map<String, dynamic> toMap() {
@@ -53,6 +55,7 @@ class NgoListingModel {
       'imageUrl': imageUrl,
       'foodType': foodType,
       'quantity': quantity,
+      'fulfilledQuantity': fulfilledQuantity ?? 0, // <-- Added to Map for Firebase
       'unit': unit,
       'category': category,
       'productName': productName,
@@ -60,7 +63,7 @@ class NgoListingModel {
       'liveUntil': Timestamp.fromDate(liveUntil),
       'createdAt': Timestamp.fromDate(createdAt),
       'status': status,
-      'isVolunteerAvailable': isVolunteerAvailable, // <-- Added to Map for Firebase
+      'isVolunteerAvailable': isVolunteerAvailable, 
     };
   }
 
@@ -76,6 +79,7 @@ class NgoListingModel {
 
       foodType: map['foodType'],
       quantity: map['quantity'],
+      fulfilledQuantity: map['fulfilledQuantity'] ?? 0, // <-- Read from Firebase, defaults to 0
       unit: map['unit'],
       category: map['category'],
       productName: map['productName'],
@@ -86,8 +90,6 @@ class NgoListingModel {
       createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
 
       status: map['status'] ?? 'open',
-      
-      // <-- Read from Firebase, defaulting to null if it doesn't exist yet
       isVolunteerAvailable: map['isVolunteerAvailable'] as bool?, 
     );
   }

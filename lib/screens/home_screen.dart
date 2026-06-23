@@ -263,16 +263,7 @@ class HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-              PopupMenuItem<String>(
-                value: 'recent_donations',
-                child: Row(
-                  children: [
-                    Icon(Icons.list_alt_rounded, color: Color(0xFF7D444C), size: 20),
-                    const SizedBox(width: 12),
-                    const Text('Impact History', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black87)),
-                  ],
-                ),
-              ),
+              
               const PopupMenuDivider(),
               PopupMenuItem<String>(
                 value: 'logout',
@@ -291,69 +282,132 @@ class HomeScreenState extends State<HomeScreen> {
       ),
       body: screens[_currentIndex],      
       
-      // ================= PREMIUM ELEGANT FLOATING NAV BAR =================
+      // ================= CUSTOM ARCHED OVERFLOW FLOATING NAV BAR =================
       bottomNavigationBar: SafeArea(
         child: Container(
-          margin: const EdgeInsets.only(left: 16, right: 16, bottom: 12), 
-          height: 70,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.9), // Slightly more opaque for better legibility
-            borderRadius: BorderRadius.circular(35),
-            border: Border.all(color: Colors.white, width: 1.5),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF7D444C).withOpacity(0.12),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
-              )
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(35),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: List.generate(navItems.length, (index) {
-                  final item = navItems[index];
-                  final icon = (item.icon as Icon).icon!;
-                  final label = item.label ?? '';
-                  final isActive = _currentIndex == index;
-                  final themeColor = const Color(0xFF7D444C);
+          margin: const EdgeInsets.only(left: 16, right: 16, bottom: 12),
+          height: 85, // Height increased slightly to safely frame and accommodate the middle elevated bubble setup
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // 1. MAIN BACKGROUND CONTAINER LAYER
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  height: 65,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(32),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF7D444C).withOpacity(0.08),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
+                      )
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: List.generate(navItems.length, (index) {
+                      // Skip the rendering process for the middle item (index 2) to maintain its blank container footprint
+                      if (index == 2) {
+                        return const Expanded(child: SizedBox.shrink());
+                      }
 
-                  return Expanded(
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _currentIndex = index;
-                          if (index != 1) targetPostId = null; 
-                        });
-                      },
-                      behavior: HitTestBehavior.opaque,
+                      final item = navItems[index];
+                      final icon = (item.icon as Icon).icon!;
+                      final label = item.label ?? '';
+                      final isActive = _currentIndex == index;
+                      final themeColor = const Color(0xFF7D444C);
+
+                      return Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _currentIndex = index;
+                              if (index != 1) targetPostId = null;
+                            });
+                          },
+                          behavior: HitTestBehavior.opaque,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                icon,
+                                color: isActive ? themeColor : Colors.black38,
+                                size: 24,
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                label,
+                                style: TextStyle(
+                                  color: isActive ? themeColor : Colors.black38,
+                                  fontSize: 10,
+                                  fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+              ),
+
+              // 2. HERO OVERSIZED MIDDLE OVERFLOW BUTTON (Index 2 - Action Tab)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _currentIndex = 2; // Targets the Center Core Screen Layout Action
+                        targetPostId = null;
+                      });
+                    },
+                    child: Container(
+                      width: 62,
+                      height: 62,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF7D444C),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF7D444C).withOpacity(0.35),
+                            blurRadius: 12,
+                            offset: const Offset(0, 6),
+                          )
+                        ],
+                      ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
-                            icon,
-                            color: isActive ? themeColor : themeColor.withOpacity(0.4),
-                            size: isActive ? 26 : 24,
+                            (navItems[2].icon as Icon).icon!,
+                            color: Colors.white,
+                            size: 28,
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           Text(
-                            label,
-                            style: TextStyle(
-                              color: isActive ? themeColor : themeColor.withOpacity(0.4),
-                              fontSize: 10,
-                              fontWeight: isActive ? FontWeight.w800 : FontWeight.w500,
+                            navItems[2].label ?? '',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ],
                       ),
                     ),
-                  );
-                }),
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
         ),
       ),
