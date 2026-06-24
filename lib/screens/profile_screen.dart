@@ -1,9 +1,14 @@
 import 'dart:io';
+import 'dart:ui' as ui;
+import 'package:flutter/rendering.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:share_plus/share_plus.dart';
+import 'dart:typed_data';
+
 import '../providers/auth_provider.dart';
 import '../services/firestore_service.dart';
 import '../services/storage_service.dart';
@@ -15,18 +20,19 @@ class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  State<ProfileScreen> createState() => ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class ProfileScreenState extends State<ProfileScreen> {
   final Color themeColor = const Color(0xFFB56F76);
   final ImagePicker _picker = ImagePicker();
-  bool _isUploading = false;
+  bool isUploading = false;
 
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.currentUserModel;
+
     if (user == null) {
       return Scaffold(
         body: Center(child: CircularProgressIndicator(color: themeColor)),
@@ -36,9 +42,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final String currentUserId = authProvider.currentFirebaseUser?.uid ?? '';
     final String userRole = user.role.toString().toLowerCase();
     final bool isViewingNgoProfile =
-        userRole == 'ngo' &&
-        currentUserId.isNotEmpty &&
-        currentUserId != user.uid;
+        userRole == 'ngo' && currentUserId.isNotEmpty && currentUserId != user.uid;
 
     return Container(
       decoration: const BoxDecoration(
@@ -103,15 +107,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   backgroundImage: user.profileImage.isNotEmpty
                                       ? NetworkImage(user.profileImage)
                                       : null,
-                                  child: _isUploading
+                                  child: isUploading
                                       ? const CircularProgressIndicator()
                                       : (user.profileImage.isEmpty
-                                            ? Icon(
-                                                Icons.person_rounded,
-                                                size: 50,
-                                                color: themeColor,
-                                              )
-                                            : null),
+                                          ? Icon(
+                                              Icons.person_rounded,
+                                              size: 50,
+                                              color: themeColor,
+                                            )
+                                          : null),
                                 ),
                               ),
                             ),
@@ -162,22 +166,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               onPressed: () => Navigator.push(
                                                 context,
                                                 MaterialPageRoute(
-                                                  builder: (_) =>
-                                                      const EditProfileScreen(),
+                                                  builder: (context) => const EditProfileScreen(),
                                                 ),
                                               ),
                                               style: ElevatedButton.styleFrom(
                                                 backgroundColor: themeColor,
                                                 shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(30),
+                                                  borderRadius: BorderRadius.circular(30),
                                                 ),
                                               ),
                                               child: const Text(
                                                 "Edit Profile",
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                ),
+                                                style: TextStyle(color: Colors.white),
                                               ),
                                             ),
                                           ),
@@ -190,27 +190,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                             .snapshots(),
                                         builder: (context, snapshot) {
                                           List<dynamic> favorites = [];
-                                          if (snapshot.hasData &&
-                                              snapshot.data!.exists) {
-                                            final data =
-                                                snapshot.data!.data()
-                                                    as Map<String, dynamic>?;
-                                            favorites =
-                                                data?['favorites'] ?? [];
+                                          if (snapshot.hasData && snapshot.data!.exists) {
+                                            final data = snapshot.data!.data() as Map<String, dynamic>?;
+                                            favorites = data?['favorites'] ?? [];
                                           }
-                                          bool isFav = favorites.contains(
-                                            user.uid,
-                                          );
+                                          bool isFav = favorites.contains(user.uid);
                                           return IconButton(
                                             icon: Icon(
-                                              isFav
-                                                  ? Icons.favorite
-                                                  : Icons.favorite_border,
-                                              color: isFav
-                                                  ? Colors.red
-                                                  : themeColor,
-                                              size: 28,
+                                              isFav ? Icons.favorite : Icons.favorite_border,
                                             ),
+                                            color: isFav ? Colors.red : themeColor,
+                                            iconSize: 28,
                                             onPressed: () => _toggleFavoriteNgo(
                                               currentUserId,
                                               user.uid,
@@ -219,7 +209,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           );
                                         },
                                       ),
-                                    ],
+                                    ]
                                   ],
                                 ),
                               ],
@@ -228,7 +218,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ],
                       ),
                     ),
-
                     const SizedBox(height: 25),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -247,7 +236,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 25),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -260,13 +248,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 .snapshots(),
                             builder: (context, snapshot) {
                               String count = "0";
-                              if (snapshot.hasData)
+                              if (snapshot.hasData) {
                                 count = snapshot.data!.docs.length.toString();
+                              }
                               return _buildStatCard(
                                 "Total Requests",
                                 count,
-                                () =>
-                                    _showRecentRequestsSheet(context, user.uid),
+                                () => _showRecentRequestsSheet(context, user.uid),
                               );
                             },
                           )
@@ -278,32 +266,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 .snapshots(),
                             builder: (context, snapshot) {
                               String count = "0";
-                              if (snapshot.hasData)
+                              if (snapshot.hasData) {
                                 count = snapshot.data!.docs.length.toString();
+                              }
                               return _buildStatCard(
                                 "Total Donations",
                                 count,
                                 () => _showMyDonationsSheet(context),
                               );
                             },
-                          ),
+                          )
                       ],
                     ),
-
                     const SizedBox(height: 25),
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(15),
                         boxShadow: const [
-                          BoxShadow(color: Colors.black12, blurRadius: 5),
+                          BoxShadow(color: Colors.black12, blurRadius: 1)
                         ],
                       ),
                       child: ListTile(
-                        leading: const Icon(
-                          Icons.logout_rounded,
-                          color: Colors.red,
-                        ),
+                        leading: const Icon(Icons.logout_rounded, color: Colors.red),
                         title: const Text(
                           "Logout",
                           style: TextStyle(
@@ -316,7 +301,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           if (context.mounted) {
                             Navigator.of(context).pushAndRemoveUntil(
                               MaterialPageRoute(
-                                builder: (_) => const RoleSelectionScreen(),
+                                builder: (context) => const RoleSelectionScreen(),
                               ),
                               (route) => false,
                             );
@@ -335,7 +320,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ==================== BUILDER HELPERS ====================
   Widget _buildActionButton(String label, IconData icon, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
@@ -415,62 +399,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildActivityTile(
-    String title,
-    String subtitle,
-    IconData icon, {
-    Widget? trailing,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: themeColor.withOpacity(0.1)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: themeColor),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                Text(
-                  subtitle,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ],
-            ),
-          ),
-          if (trailing != null) trailing,
-        ],
-      ),
-    );
-  }
-
-  // ==================== UPDATED DONATION SHEET ====================
+  // ============================================================================
+  // UPDATED DONATION SHEET METHOD
+  // ============================================================================
+  // ============================================================================
+  // UPDATED DONATION SHEET METHOD (WITH AGGREGATION)
+  // ============================================================================
   Future<void> _showMyDonationsSheet(BuildContext context) async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final user = authProvider.currentUserModel;
     final String currentUserId = authProvider.currentFirebaseUser?.uid ?? '';
+
     if (user == null) return;
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFFDF7F8),
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
       ),
-      builder: (_) => Container(
-        height: MediaQuery.of(context).size.height * 0.68,
-        padding: const EdgeInsets.all(20),
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        padding: const EdgeInsets.only(top: 20, left: 16, right: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -488,7 +439,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Text(
               "Recent Donation History",
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: themeColor,
               ),
@@ -496,406 +447,237 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 15),
             Expanded(
               child: currentUserId.isEmpty
-                  ? const Center(
-                      child: Text("Unable to load donation history."),
-                    )
+                  ? const Center(child: Text("Unable to load donation history."))
                   : StreamBuilder<QuerySnapshot>(
                       stream: FirebaseFirestore.instance
                           .collection('donations')
                           .where('donorId', isEqualTo: currentUserId)
                           .snapshots(),
                       builder: (context, snapshot) {
-                        if (snapshot.hasError)
-                          return Center(
-                            child: Text("Error: ${snapshot.error}"),
-                          );
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const Center(
-                            child: CircularProgressIndicator(),
-                          );
+                        if (snapshot.hasError) {
+                          return Center(child: Text("Error: ${snapshot.error}"));
                         }
-                        var donations = snapshot.data!.docs;
-                        if (donations.isEmpty)
-                          return const Center(
-                            child: Text("No donation history found."),
-                          );
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return Center(child: CircularProgressIndicator(color: themeColor));
+                        }
+
+                        var allDocs = snapshot.data!.docs;
+                        Map<String, Map<String, dynamic>> groupedDonations = {};
+
+                        // --- AGGREGATION LOGIC ---
+                        // This groups multiple donations to the same listing into ONE card
+                        // and adds the quantities together.
+                        for (var doc in allDocs) {
+                          var data = doc.data() as Map<String, dynamic>;
+                          String listingId = data['listingId'] ?? doc.id;
+                          
+                          // Extract raw quantity and parse to integer (once you fix your DB!)
+                          String rawQty = data['quantity']?.toString() ?? 
+                                          data['qty']?.toString() ?? 
+                                          data['donatedAmount']?.toString() ?? '0';
+                          String cleanQty = rawQty.replaceAll(RegExp(r'[^0-9]'), '');
+                          int mathQty = int.tryParse(cleanQty.isEmpty ? '0' : cleanQty) ?? 0;
+
+                          if (groupedDonations.containsKey(listingId)) {
+                            // User donated again! Add the new quantity to the total.
+                            groupedDonations[listingId]!['aggregatedQty'] = 
+                                (groupedDonations[listingId]!['aggregatedQty'] as int) + mathQty;
+                            
+                            // Keep the latest date and status active
+                            var existingTime = groupedDonations[listingId]!['createdAt'];
+                            var thisTime = data['createdAt'];
+                            DateTime existingDate = existingTime is Timestamp ? existingTime.toDate() : DateTime.fromMillisecondsSinceEpoch(0);
+                            DateTime thisDate = thisTime is Timestamp ? thisTime.toDate() : DateTime.fromMillisecondsSinceEpoch(0);
+                            
+                            if (thisDate.isAfter(existingDate)) {
+                               groupedDonations[listingId]!['createdAt'] = data['createdAt'];
+                               groupedDonations[listingId]!['status'] = data['status'];
+                               groupedDonations[listingId]!['docId'] = doc.id; // Target newest doc for cancel
+                            }
+                          } else {
+                            // First time this listing is processed
+                            data['aggregatedQty'] = mathQty;
+                            data['docId'] = doc.id;
+                            groupedDonations[listingId] = Map<String, dynamic>.from(data);
+                          }
+                        }
+
+                        var donations = groupedDonations.values.toList();
+                        
+                        // Sort newest first
+                        donations.sort((a, b) {
+                          var aTime = a['createdAt'];
+                          var bTime = b['createdAt'];
+                          DateTime aDate = aTime is Timestamp ? aTime.toDate() : DateTime.fromMillisecondsSinceEpoch(0);
+                          DateTime bDate = bTime is Timestamp ? bTime.toDate() : DateTime.fromMillisecondsSinceEpoch(0);
+                          return bDate.compareTo(aDate);
+                        });
+
+                        if (donations.isEmpty) {
+                          return const Center(child: Text("No donation history found."));
+                        }
 
                         return ListView.builder(
+                          physics: const BouncingScrollPhysics(),
                           itemCount: donations.length,
                           itemBuilder: (context, index) {
-                            var doc = donations[index];
-                            var donation = doc.data() as Map<String, dynamic>;
+                            var donation = donations[index];
 
                             final createdAt = donation['createdAt'];
                             String dateText = 'Unknown date';
-                            if (createdAt is Timestamp) {
-                              final date = createdAt.toDate();
-                              dateText =
-                                  '${date.day}/${date.month}/${date.year}';
-                            } else if (createdAt is DateTime) {
-                              dateText =
-                                  '${createdAt.day}/${createdAt.month}/${createdAt.year}';
-                            }
-
-                            String ngoName =
-                                donation['ngoName'] ?? 'NGO Partner';
-                            String itemName =
-                                donation['items'] ??
-                                donation['itemName'] ??
-                                'Item';
-                            String quantity =
-                                donation['quantity']?.toString() ??
-                                donation['qty']?.toString() ??
-                                'N/A';
-                            String locationText =
-                                donation['donorLocation'] ??
-                                donation['location'] ??
-                                'Not Specified';
-                            String status =
-                                donation['status']
-                                    ?.toString()
-                                    .trim()
-                                    .toLowerCase() ??
-                                'pending';
-                            String ngoId = donation['ngoId'] ?? '';
-                            String listingId = donation['listingId'] ?? '';
-
                             DateTime? createdDate;
                             if (createdAt is Timestamp) {
                               createdDate = createdAt.toDate();
-                            } else if (createdAt is DateTime) {
-                              createdDate = createdAt;
+                              dateText = '${createdDate.day}/${createdDate.month}/${createdDate.year}';
                             }
 
-                            final bool isCancelled = status == 'cancelled';
-                            final bool canCancel =
-                                status == 'pending' &&
-                                createdDate != null &&
-                                DateTime.now().difference(createdDate).inHours <
-                                    24;
-                            final bool showCancelButton = status == 'pending';
+                            String ngoName = donation['ngoName'] ?? 'NGO Partner';
+                            String itemName = donation['items'] ?? donation['itemName'] ?? 'Item';
+                            
+                            // Get the summed-up quantity
+                            int donatedQty = donation['aggregatedQty'] as int;
+                            String rawDisplayQty = donatedQty.toString();
 
-                            return FutureBuilder<List<DocumentSnapshot>>(
-                              future: Future.wait([
-                                FirebaseFirestore.instance
-                                    .collection('users')
-                                    .doc(ngoId)
-                                    .get(),
-                                FirebaseFirestore.instance
-                                    .collection('ngo_listings')
-                                    .doc(listingId)
-                                    .get(),
-                              ]),
+                            String status = donation['status']?.toString().trim().toLowerCase() ?? 'pending';
+                            String ngoId = donation['ngoId'] ?? donation['ngold'] ?? '';
+                            String listingId = donation['listingId'] ?? '';
+                            String targetDocId = donation['docId'] ?? ''; 
+
+                            final bool isCancelled = status == 'cancelled';
+                            final bool canCancel = status == 'pending' &&
+                                createdDate != null &&
+                                DateTime.now().difference(createdDate).inHours < 24;
+
+                            return FutureBuilder<List<DocumentSnapshot?>>(
+                              future: () async {
+                                final ngoDoc = ngoId.isNotEmpty
+                                    ? await FirebaseFirestore.instance.collection('users').doc(ngoId).get()
+                                    : null;
+                                DocumentSnapshot? listingDoc;
+                                if (listingId.isNotEmpty) {
+                                  listingDoc = await FirebaseFirestore.instance.collection('ngo_listings').doc(listingId).get();
+                                }
+                                return [ngoDoc, listingDoc];
+                              }(),
                               builder: (context, combinedSnapshot) {
-                                if (combinedSnapshot.connectionState ==
-                                    ConnectionState.waiting) {
-                                  return const Center(
-                                    child: SizedBox(
-                                      width: 24,
-                                      height: 24,
-                                      child: CircularProgressIndicator(),
-                                    ),
+                                if (combinedSnapshot.connectionState == ConnectionState.waiting) {
+                                  return const Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 20),
+                                    child: Center(child: CircularProgressIndicator()),
                                   );
                                 }
 
-                                if (combinedSnapshot.hasData &&
-                                    combinedSnapshot.data!.length == 2) {
-                                  final ngoSnapshot = combinedSnapshot.data![0];
-                                  final listingSnapshot =
-                                      combinedSnapshot.data![1];
+                                int totalQty = donatedQty;
+                                int fulfilledQty = donatedQty;
+                                String unit = '';
+                                String type = 'PRODUCT';
 
-                                  if (ngoSnapshot.exists) {
-                                    var userData =
-                                        ngoSnapshot.data()
-                                            as Map<String, dynamic>?;
-                                    if (userData != null &&
-                                        userData['name'] != null) {
-                                      ngoName = userData['name'];
-                                    }
+                                if (combinedSnapshot.hasData && combinedSnapshot.data != null) {
+                                  final ngoSnapshot = combinedSnapshot.data![0];
+                                  if (ngoSnapshot != null && ngoSnapshot.exists) {
+                                    var userData = ngoSnapshot.data() as Map<String, dynamic>?;
+                                    ngoName = userData?['name'] ?? ngoName;
                                   }
 
-                                  if (listingSnapshot.exists) {
-                                    var listingData =
-                                        listingSnapshot.data()
-                                            as Map<String, dynamic>?;
-                                    if (listingData != null) {
-                                      if (listingData['type'] == 'food') {
-                                        itemName =
-                                            listingData['foodType'] ?? itemName;
-                                      } else {
-                                        itemName =
-                                            listingData['productName'] ??
-                                            itemName;
-                                      }
+                                  if (combinedSnapshot.data!.length > 1 && combinedSnapshot.data![1] != null) {
+                                    final listingSnapshot = combinedSnapshot.data![1]!;
+                                    if (listingSnapshot.exists) {
+                                      var listingData = listingSnapshot.data() as Map<String, dynamic>?;
+                                      if (listingData != null) {
+                                        if (listingData['type'] == 'food' || listingData['type'] == 'FOOD') {
+                                          itemName = listingData['foodType'] ?? itemName;
+                                          type = 'FOOD';
+                                        } else {
+                                          itemName = listingData['productName'] ?? itemName;
+                                          type = (listingData['type'] ?? 'PRODUCT').toString().toUpperCase();
+                                        }
 
-                                      if (listingData['quantity'] != null) {
-                                        final unit = listingData['unit'] ?? '';
-                                        final quantityValue =
-                                            listingData['quantity'].toString();
-                                        final fullQuantity =
-                                            '$quantityValue $unit'.trim();
-                                        quantity = fullQuantity.isNotEmpty
-                                            ? fullQuantity
-                                            : quantity;
-                                      }
-
-                                      if (locationText == 'Not Specified' ||
-                                          locationText.isEmpty) {
-                                        locationText =
-                                            listingData['ngoLocation'] ??
-                                            locationText;
+                                        unit = listingData['unit'] ?? '';
+                                        totalQty = int.tryParse(listingData['quantity']?.toString() ?? '0') ?? donatedQty;
+                                        fulfilledQty = int.tryParse(listingData['fulfilledQuantity']?.toString() ?? '0') ?? donatedQty;
                                       }
                                     }
                                   }
                                 }
 
-                                return Container(
-                                  margin: const EdgeInsets.only(bottom: 12),
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                      color: themeColor.withOpacity(0.15),
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.05),
-                                        blurRadius: 10,
-                                        offset: const Offset(0, 4),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.center,
-                                    children: [
-                                      const Icon(
-                                        Icons.volunteer_activism,
-                                        color: Color(0xFFB56F76),
-                                        size: 32,
-                                      ),
-                                      const SizedBox(width: 16),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              ngoName,
-                                              style: const TextStyle(
-                                                fontSize: 17,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 6),
-                                            Text(
-                                              "Item: $itemName",
-                                              style: const TextStyle(
-                                                fontSize: 14,
-                                                color: Colors.black87,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              "Quantity: $quantity",
-                                              style: const TextStyle(
-                                                fontSize: 14,
-                                                color: Colors.black87,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              "Date: $dateText",
-                                              style: const TextStyle(
-                                                fontSize: 14,
-                                                color: Colors.black87,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              "Location: $locationText",
-                                              style: const TextStyle(
-                                                fontSize: 14,
-                                                color: Colors.black87,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                            if (isCancelled)
-                                              const Padding(
-                                                padding: EdgeInsets.only(
-                                                  top: 8.0,
-                                                ),
-                                                child: Text(
-                                                  'Cancelled by you',
-                                                  style: TextStyle(
-                                                    fontSize: 13,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: Colors.red,
-                                                  ),
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                      ),
-                                      if (showCancelButton)
-                                        Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.end,
-                                          children: [
-                                            TextButton(
-                                              onPressed: canCancel
-                                                  ? () async {
-                                                      bool stepOne =
-                                                          await _showCancelStepDialog(
-                                                            context,
-                                                            'Step 1 of 3',
-                                                            'Do you really want to cancel this donation?',
-                                                          );
-                                                      if (!stepOne) return;
+                                int remainingQty = totalQty - fulfilledQty;
+                                if (remainingQty < 0) remainingQty = 0;
 
-                                                      bool stepTwo =
-                                                          await _showCancelStepDialog(
-                                                            context,
-                                                            'Step 2 of 3',
-                                                            'This action cannot be undone. Are you sure?',
-                                                          );
-                                                      if (!stepTwo) return;
+                                return EnhancedDonationHistoryCard(
+                                  ngoName: ngoName,
+                                  itemName: itemName,
+                                  displayDonatedQty: rawDisplayQty,
+                                  mathDonatedQty: donatedQty,
+                                  totalQty: totalQty,
+                                  fulfilledQty: fulfilledQty,
+                                  remainingQty: remainingQty,
+                                  unit: unit,
+                                  type: type,
+                                  dateText: dateText,
+                                  isCancelled: isCancelled,
+                                  canCancel: canCancel,
+                                  themeColor: themeColor,
+                                  onCancel: () async {
+                                    bool stepOne = await _showCancelStepDialog(
+                                      context,
+                                      'Step 1 of 3',
+                                      'Do you really want to cancel this donation?',
+                                    );
+                                    if (!stepOne) return;
 
-                                                      String? reason =
-                                                          await _showCancelReasonDialog(
-                                                            context,
-                                                          );
-                                                      if (reason == null ||
-                                                          reason.trim().isEmpty)
-                                                        return;
+                                    if (!context.mounted) return;
+                                    bool stepTwo = await _showCancelStepDialog(
+                                      context,
+                                      'Step 2 of 3',
+                                      'This action cannot be undone. Are you sure?',
+                                    );
+                                    if (!stepTwo) return;
 
-                                                      try {
-                                                        final donationData =
-                                                            doc.data()
-                                                                as Map<
-                                                                  String,
-                                                                  dynamic
-                                                                >;
-                                                        final ngoId =
-                                                            donationData['ngoId'] ??
-                                                            '';
-                                                        await FirebaseFirestore
-                                                            .instance
-                                                            .collection(
-                                                              'donations',
-                                                            )
-                                                            .doc(doc.id)
-                                                            .update({
-                                                              'status':
-                                                                  'cancelled',
-                                                              'cancelReason':
-                                                                  reason.trim(),
-                                                              'cancelledAt':
-                                                                  Timestamp.fromDate(
-                                                                    DateTime.now(),
-                                                                  ),
-                                                            });
+                                    if (!context.mounted) return;
+                                    String? reason = await showCancelReasonDialog(context);
+                                    if (reason == null || reason.trim().isEmpty) return;
 
-                                                        if (ngoId.isNotEmpty) {
-                                                          final String
-                                                          notificationId =
-                                                              FirebaseFirestore
-                                                                  .instance
-                                                                  .collection(
-                                                                    'notifications',
-                                                                  )
-                                                                  .doc()
-                                                                  .id;
-                                                          final String
-                                                          senderName =
-                                                              user
-                                                                  .name
-                                                                  .isNotEmpty
-                                                              ? user.name
-                                                              : 'Donor';
-                                                          final String title =
-                                                              'Donation Cancelled';
-                                                          final String message =
-                                                              '$senderName cancelled the donation request for $itemName.';
-                                                          final NotificationModel
-                                                          notification = NotificationModel(
-                                                            id: notificationId,
-                                                            receiverId: ngoId,
-                                                            senderId:
-                                                                currentUserId,
-                                                            senderName:
-                                                                senderName,
-                                                            type:
-                                                                'donation_cancelled',
-                                                            title: title,
-                                                            message: message,
-                                                            relatedItemId:
-                                                                doc.id,
-                                                            createdAt:
-                                                                DateTime.now(),
-                                                          );
-                                                          await FirestoreService()
-                                                              .sendNotification(
-                                                                notification,
-                                                              );
-                                                        }
+                                    try {
+                                      // Targets the specific grouped document ID
+                                      await FirebaseFirestore.instance
+                                          .collection('donations')
+                                          .doc(targetDocId)
+                                          .update({
+                                        'status': 'cancelled',
+                                        'cancelReason': reason.trim(),
+                                        'cancelledAt': Timestamp.now(),
+                                      });
 
-                                                        if (!mounted) return;
-                                                        ScaffoldMessenger.of(
-                                                          context,
-                                                        ).showSnackBar(
-                                                          const SnackBar(
-                                                            content: Text(
-                                                              'Donation cancelled and notification sent.',
-                                                            ),
-                                                          ),
-                                                        );
-                                                      } catch (e) {
-                                                        if (!mounted) return;
-                                                        ScaffoldMessenger.of(
-                                                          context,
-                                                        ).showSnackBar(
-                                                          SnackBar(
-                                                            content: Text(
-                                                              'Failed to cancel donation: $e',
-                                                            ),
-                                                          ),
-                                                        );
-                                                      }
-                                                    }
-                                                  : null,
-                                              style: TextButton.styleFrom(
-                                                foregroundColor: canCancel
-                                                    ? Colors.red
-                                                    : Colors.grey,
-                                              ),
-                                              child: Text(
-                                                canCancel
-                                                    ? 'Cancel'
-                                                    : 'Expired',
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.w600,
-                                                  fontSize: 15,
-                                                ),
-                                              ),
-                                            ),
-                                            if (!canCancel)
-                                              const Text(
-                                                '24h expired',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: Colors.grey,
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                    ],
-                                  ),
+                                      if (ngoId.isNotEmpty && context.mounted) {
+                                        String notificationId = FirebaseFirestore.instance.collection('notifications').doc().id;
+                                        NotificationModel notification = NotificationModel(
+                                          id: notificationId,
+                                          receiverId: ngoId,
+                                          senderId: currentUserId,
+                                          senderName: user.name,
+                                          title: 'Donation Cancelled',
+                                          message: '${user.name} cancelled the donation request for $itemName.',
+                                          type: 'donation_cancelled',
+                                          relatedItemId: targetDocId,
+                                          createdAt: DateTime.now(),
+                                          isRead: false,
+                                        );
+                                        await FirestoreService().sendNotification(notification);
+                                      }
+
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Donation cancelled and notification sent.')),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Failed to cancel donation.')),
+                                        );
+                                      }
+                                    }
+                                  },
                                 );
                               },
                             );
@@ -910,12 +692,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ==================== OTHER METHODS ====================
-  Future<bool> _showCancelStepDialog(
-    BuildContext context,
-    String title,
-    String message,
-  ) async {
+  // ===== OTHER METHODS =====
+  Future<bool> _showCancelStepDialog(BuildContext context, String title, String message) async {
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -936,7 +714,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return result == true;
   }
 
-  Future<String?> _showCancelReasonDialog(BuildContext context) async {
+  Future<String?> showCancelReasonDialog(BuildContext context) async {
     final TextEditingController reasonController = TextEditingController();
     final result = await showDialog<String?>(
       context: context,
@@ -972,20 +750,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return result?.trim().isEmpty == true ? null : result?.trim();
   }
 
-  Future<void> _toggleFavoriteNgo(
-    String donorId,
-    String ngoId,
-    bool isFav,
-  ) async {
+  Future<void> _toggleFavoriteNgo(String donorId, String ngoId, bool isFav) async {
     if (donorId.isEmpty || ngoId.isEmpty) return;
     final docRef = FirebaseFirestore.instance.collection('users').doc(donorId);
     if (isFav) {
       await docRef.update({
-        'favorites': FieldValue.arrayRemove([ngoId]),
+        'favorites': FieldValue.arrayRemove([ngoId])
       });
     } else {
       await docRef.update({
-        'favorites': FieldValue.arrayUnion([ngoId]),
+        'favorites': FieldValue.arrayUnion([ngoId])
       });
     }
   }
@@ -993,28 +767,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _pickAndUploadImage() async {
     final XFile? picked = await _picker.pickImage(source: ImageSource.gallery);
     if (picked == null) return;
-    setState(() => _isUploading = true);
+    setState(() => isUploading = true);
     final url = await StorageService().uploadImage(File(picked.path), null);
     if (url != null && mounted) {
-      await Provider.of<AuthProvider>(
-        context,
-        listen: false,
-      ).updateProfile(profileImage: url);
+      await Provider.of<AuthProvider>(context, listen: false).updateProfile(profileImage: url);
     }
-    setState(() => _isUploading = false);
+    setState(() => isUploading = false);
   }
 
-  Future<void> _showRecentRequestsSheet(
-    BuildContext context,
-    String ngoId,
-  ) async {
+  Future<void> _showRecentRequestsSheet(BuildContext context, String ngoId) async {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
       ),
-      builder: (_) => Container(
+      builder: (context) => Container(
         height: MediaQuery.of(context).size.height * 0.5,
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -1033,45 +801,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('volunteer_requests')
-                    .where('ngoId', isEqualTo: ngoId)
+                    .where('ngold', isEqualTo: ngoId)
                     .snapshots(),
                 builder: (context, snapshot) {
-                  if (!snapshot.hasData)
+                  if (!snapshot.hasData) {
                     return const Center(child: CircularProgressIndicator());
+                  }
                   var requests = snapshot.data!.docs;
-                  if (requests.isEmpty)
+                  if (requests.isEmpty) {
                     return const Center(child: Text("No requests found."));
+                  }
                   return ListView.builder(
                     itemCount: requests.length,
                     itemBuilder: (context, index) {
-                      var request =
-                          requests[index].data() as Map<String, dynamic>;
+                      var request = requests[index].data() as Map<String, dynamic>;
                       String listingId = request['listingId'] ?? '';
-                      Timestamp? requestCreatedAt =
-                          request['createdAt'] as Timestamp?;
+                      Timestamp? requestCreatedAt = request['createdAt'] as Timestamp?;
                       String requestDate = 'Date unknown';
                       if (requestCreatedAt != null) {
                         final created = requestCreatedAt.toDate();
-                        requestDate =
-                            '${created.day}/${created.month}/${created.year}';
+                        requestDate = '${created.day}/${created.month}/${created.year}';
                       }
-                      String requestStatus =
-                          request['status']?.toString().toUpperCase() ??
-                          'PENDING';
+                      String requestStatus = request['status']?.toString().toUpperCase() ?? 'PENDING';
 
                       return FutureBuilder<DocumentSnapshot?>(
                         future: listingId.isNotEmpty
-                            ? FirebaseFirestore.instance
-                                  .collection('ngo_listings')
-                                  .doc(listingId)
-                                  .get()
+                            ? FirebaseFirestore.instance.collection('ngo_listings').doc(listingId).get()
                             : Future<DocumentSnapshot?>.value(null),
                         builder: (context, listingSnapshot) {
                           String itemName = request['title'] ?? 'Request';
                           String details = request['description'] ?? '';
 
-                          if (listingSnapshot.connectionState ==
-                              ConnectionState.waiting) {
+                          if (listingSnapshot.connectionState == ConnectionState.waiting) {
                             return const Padding(
                               padding: EdgeInsets.symmetric(vertical: 8.0),
                               child: Center(
@@ -1084,48 +845,60 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             );
                           }
 
-                          if (listingSnapshot.hasData &&
-                              listingSnapshot.data != null &&
-                              listingSnapshot.data!.exists) {
-                            final listingData =
-                                listingSnapshot.data!.data()
-                                    as Map<String, dynamic>?;
+                          if (listingSnapshot.hasData && listingSnapshot.data != null && listingSnapshot.data!.exists) {
+                            final listingData = listingSnapshot.data!.data() as Map<String, dynamic>?;
                             if (listingData != null) {
                               if (listingData['type'] == 'food') {
                                 itemName = listingData['foodType'] ?? itemName;
                               } else {
-                                itemName =
-                                    listingData['productName'] ?? itemName;
+                                itemName = listingData['productName'] ?? itemName;
                               }
                               if (listingData['quantity'] != null) {
                                 final unit = listingData['unit'] ?? '';
-                                final quantityValue = listingData['quantity']
-                                    .toString();
-                                details =
-                                    '${quantityValue.isNotEmpty ? 'Qty: $quantityValue $unit' : ''}${details.isNotEmpty ? ' • $details' : ''}';
+                                final quantityValue = listingData['quantity'].toString();
+                                details = '${quantityValue.isNotEmpty ? 'Qty: $quantityValue $unit' : ''}${details.isNotEmpty ? ' • $details' : ''}';
                               }
-                              if (listingData['ngoLocation'] != null &&
-                                  listingData['ngoLocation']
-                                      .toString()
-                                      .isNotEmpty) {
-                                details =
-                                    '${details.isNotEmpty ? '$details • ' : ''}Location: ${listingData['ngoLocation']}';
+                              if (listingData['ngoLocation'] != null && listingData['ngoLocation'].toString().isNotEmpty) {
+                                details = '${details.isNotEmpty ? '$details \n' : ''}Location: ${listingData['ngoLocation']}';
                               }
                             }
                           }
 
                           if (details.isEmpty) {
-                            details =
-                                'Request history • $requestDate • $requestStatus';
+                            details = 'Request history. $requestDate • $requestStatus';
                           } else {
-                            details =
-                                '$details • $requestDate • $requestStatus';
+                            details = '$details \n$requestDate • $requestStatus';
                           }
 
-                          return _buildActivityTile(
-                            itemName,
-                            details,
-                            Icons.campaign,
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: themeColor.withOpacity(0.1)),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.campaign, color: themeColor),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        itemName,
+                                        style: const TextStyle(fontWeight: FontWeight.w600),
+                                      ),
+                                      Text(
+                                        details,
+                                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                           );
                         },
                       );
@@ -1192,12 +965,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildShareOption(
-    BuildContext context,
-    String label,
-    IconData icon,
-    String urlScheme,
-  ) {
+  Widget _buildShareOption(BuildContext context, String label, IconData icon, String urlScheme) {
     return GestureDetector(
       onTap: () async {
         Navigator.pop(context);
@@ -1224,6 +992,418 @@ class _ProfileScreenState extends State<ProfileScreen> {
             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// NEW ENHANCED HISTORY CARD (STATEFUL NATIVE CAPTURE)
+// ============================================================================
+
+class EnhancedDonationHistoryCard extends StatefulWidget {
+  final String ngoName;
+  final String itemName;
+  final String displayDonatedQty;
+  final int mathDonatedQty;
+  final int totalQty;
+  final int fulfilledQty;
+  final int remainingQty;
+  final String unit;
+  final String type;
+  final String dateText;
+  final bool isCancelled;
+  final bool canCancel;
+  final Color themeColor;
+  final VoidCallback onCancel;
+
+  const EnhancedDonationHistoryCard({
+    Key? key,
+    required this.ngoName,
+    required this.itemName,
+    required this.displayDonatedQty,
+    required this.mathDonatedQty,
+    required this.totalQty,
+    required this.fulfilledQty,
+    required this.remainingQty,
+    required this.unit,
+    required this.type,
+    required this.dateText,
+    required this.isCancelled,
+    required this.canCancel,
+    required this.themeColor,
+    required this.onCancel,
+  }) : super(key: key);
+
+  @override
+  State<EnhancedDonationHistoryCard> createState() => _EnhancedDonationHistoryCardState();
+}
+
+class _EnhancedDonationHistoryCardState extends State<EnhancedDonationHistoryCard> {
+  final GlobalKey _shareKey = GlobalKey();
+
+  Future<void> _shareDonationCard(BuildContext context) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Center(child: CircularProgressIndicator(color: widget.themeColor)),
+    );
+
+    try {
+      await Future.delayed(const Duration(milliseconds: 150));
+
+      RenderRepaintBoundary boundary = _shareKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      ui.Image image = await boundary.toImage(pixelRatio: 3.0); 
+      ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      Uint8List pngBytes = byteData!.buffer.asUint8List();
+
+      if (context.mounted) Navigator.pop(context);
+
+      String formattedQty = widget.displayDonatedQty;
+      if (!formattedQty.toLowerCase().contains(RegExp(r'[a-z]')) && widget.unit.isNotEmpty) {
+        formattedQty = '$formattedQty ${widget.unit}';
+      }
+
+      // Inside _shareDonationCard in _EnhancedDonationHistoryCardState
+String shareMessage = "I just donated ${widget.displayDonatedQty} of ${widget.itemName} to ${widget.ngoName} through Charitey! ❤️\n\n";
+
+if (widget.remainingQty > 0 && widget.type.toUpperCase() != 'FOOD') {
+  shareMessage += "They still need ${widget.remainingQty} ${widget.unit}. Every contribution helps change lives.\n\n";
+}
+shareMessage += "Join me in helping families in need. Download Charitey and make an impact today! ✨\n\n#Charitey #Donate #SocialImpact";
+
+      final xFile = XFile.fromData(
+        pngBytes,
+        mimeType: 'image/png',
+        name: 'charitey_impact.png',
+      );
+
+      await Share.shareXFiles(
+        [xFile],
+        text: shareMessage,
+      );
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to share: $e')));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    double progress = widget.totalQty > 0 ? (widget.fulfilledQty / widget.totalQty) : 0.0;
+    bool isFood = widget.type.toUpperCase() == 'FOOD';
+
+    String formattedQty = widget.displayDonatedQty;
+    if (!formattedQty.toLowerCase().contains(RegExp(r'[a-z]')) && widget.unit.isNotEmpty) {
+      formattedQty = '$formattedQty ${widget.unit}';
+    }
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        // FIXED HUGE GAP: Wrapped hidden widget in Positioned so it takes 0 layout space
+        Positioned(
+          left: -5000,
+          top: -5000,
+          child: RepaintBoundary(
+            key: _shareKey,
+            child: Material(
+              color: Colors.transparent,
+              child: DonationShareTemplate(
+                ngoName: widget.ngoName,
+                itemName: widget.itemName,
+                formattedDonatedQty: formattedQty,
+                remainingQty: widget.remainingQty,
+                unit: widget.unit,
+                totalQty: widget.totalQty,
+                fulfilledQty: widget.fulfilledQty,
+                type: widget.type,
+                themeColor: widget.themeColor,
+              ),
+            ),
+          ),
+        ),
+        Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: widget.themeColor.withOpacity(0.1),
+                    child: Text(
+                      widget.ngoName.isNotEmpty ? widget.ngoName[0].toUpperCase() : 'N',
+                      style: TextStyle(color: widget.themeColor, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.ngoName,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        Row(
+                          children: [
+                            const Icon(Icons.verified, color: Colors.green, size: 14),
+                            const SizedBox(width: 4),
+                            Text("Verified Organization", style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                          ],
+                        )
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                widget.itemName,
+                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: widget.themeColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.volunteer_activism, size: 16, color: widget.themeColor),
+                        const SizedBox(width: 6),
+                        Text(
+                          "You donated $formattedQty",
+                          style: TextStyle(color: widget.themeColor, fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      widget.type,
+                      style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              
+              if (!isFood) ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "${widget.fulfilledQty} collected out of ${widget.totalQty}",
+                      style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                    Text(
+                      "${widget.remainingQty} needed",
+                      style: TextStyle(color: widget.themeColor, fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 8,
+                    backgroundColor: Colors.grey.shade200,
+                    valueColor: AlwaysStoppedAnimation<Color>(widget.themeColor),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+              
+              Row(
+                children: [
+                  Icon(Icons.access_time, size: 14, color: Colors.grey.shade500),
+                  const SizedBox(width: 4),
+                  Text(widget.dateText, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Divider(),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  if (widget.isCancelled)
+                    const Text('Cancelled by you', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13))
+                  else if (widget.canCancel)
+                    TextButton(
+                      onPressed: widget.onCancel,
+                      style: TextButton.styleFrom(
+                        backgroundColor: Colors.red.shade50,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      ),
+                      child: Text('Cancel Request', style: TextStyle(color: Colors.red.shade400, fontWeight: FontWeight.bold)),
+                    )
+                  else
+                    TextButton(
+                      onPressed: null,
+                      child: Text('24h Expired', style: TextStyle(color: Colors.grey.shade400)),
+                    ),
+
+                  if (!widget.isCancelled)
+                    ElevatedButton.icon(
+                      onPressed: () => _shareDonationCard(context),
+                      icon: const Icon(Icons.share, size: 18, color: Colors.white),
+                      label: const Text("Share Impact", style: TextStyle(color: Colors.white)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: widget.themeColor,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        elevation: 0,
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ============================================================================
+// BACKGROUND WIDGET: THIS GENERATES THE INSTAGRAM-STYLE IMAGE
+// ============================================================================
+class DonationShareTemplate extends StatelessWidget {
+  final String ngoName;
+  final String itemName;
+  final String formattedDonatedQty;
+  final int remainingQty;
+  final String unit;
+  final int totalQty;
+  final int fulfilledQty;
+  final String type;
+  final Color themeColor;
+
+  const DonationShareTemplate({
+    Key? key,
+    required this.ngoName,
+    required this.itemName,
+    required this.formattedDonatedQty,
+    required this.remainingQty,
+    required this.unit,
+    required this.totalQty,
+    required this.fulfilledQty,
+    required this.type,
+    required this.themeColor,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    double progress = totalQty > 0 ? (fulfilledQty / totalQty) : 0.0;
+    bool isFood = type.toUpperCase() == 'FOOD';
+
+    return Container(
+      width: 400, 
+      padding: const EdgeInsets.all(30),
+      decoration: const BoxDecoration(
+        color: Color(0xFFFDF7F8),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 20)],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.volunteer_activism, color: themeColor, size: 28),
+                const SizedBox(width: 10),
+                Text("CHARITEY", style: TextStyle(color: themeColor, fontWeight: FontWeight.bold, fontSize: 22, letterSpacing: 1.5)),
+              ],
+            ),
+            const SizedBox(height: 25),
+            Text("I supported", style: TextStyle(color: Colors.grey.shade600, fontSize: 16)),
+            const SizedBox(height: 5),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(ngoName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+                const SizedBox(width: 5),
+                const Icon(Icons.verified, color: Colors.green, size: 18),
+              ],
+            ),
+            const SizedBox(height: 25),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+              decoration: BoxDecoration(color: themeColor.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+              child: Column(
+                children: [
+                  Text("🎁 I Donated", style: TextStyle(color: themeColor, fontWeight: FontWeight.bold, fontSize: 16)),
+                  const SizedBox(height: 5),
+                  Text("$formattedDonatedQty of $itemName", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 25),
+            
+            if (!isFood) ...[
+              if (remainingQty > 0) ...[
+                Text("Still Needed: $remainingQty $unit", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.redAccent)),
+                const SizedBox(height: 10),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 12,
+                    backgroundColor: Colors.grey.shade200,
+                    valueColor: AlwaysStoppedAnimation<Color>(themeColor),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text("$fulfilledQty / $totalQty collected", style: TextStyle(color: Colors.grey.shade600, fontSize: 14)),
+              ] else ...[
+                const Text("🎉 Goal Fully Reached! 🎉", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.green)),
+              ],
+            ] else ...[
+               Text("Providing essential food relief.", style: TextStyle(color: Colors.grey.shade700, fontSize: 16, fontStyle: FontStyle.italic)),
+            ],
+            
+            const SizedBox(height: 30),
+            const Text("Every donation changes lives.", style: TextStyle(fontStyle: FontStyle.italic, fontSize: 16)),
+            const SizedBox(height: 5),
+            Text("Join me and support families in need.", style: TextStyle(color: Colors.grey.shade600, fontSize: 14)),
+            const SizedBox(height: 20),
+            Text("#Charitey", style: TextStyle(color: themeColor, fontWeight: FontWeight.bold)),
+          ],
+        ),
       ),
     );
   }

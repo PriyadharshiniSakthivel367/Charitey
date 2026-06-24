@@ -111,65 +111,70 @@ class _DonationPageState extends State<DonationPage> {
       _isLoading = true; 
     });
 
-    try { 
-      String newDonationId = FirebaseFirestore.instance.collection('donations').doc().id; 
-      String newNotificationId = FirebaseFirestore.instance.collection('notifications').doc().id; 
+    try {
+        String newDonationId = FirebaseFirestore.instance.collection('donations').doc().id;
+        String newNotificationId = FirebaseFirestore.instance.collection('notifications').doc().id;
 
-      // 1. Instantiating Donation record object payload
-      DonationModel donation = DonationModel( 
-        donationId: newDonationId, 
-        listingId: widget.listing.listingId, 
-        ngoId: widget.listing.ngoId, 
-        donorId: user.uid, 
-        donorName: name, 
-        donorPhone: phone, 
-        donorLocation: location, 
-        status: 'pending', 
-        createdAt: DateTime.now(), 
-        donatedQuantity: inputDonatedAmount, 
-      );
+        // 1. Instantiating Donation record object payload
+        DonationModel donation = DonationModel(
+          donationId: newDonationId,
+          listingId: widget.listing.listingId,
+          ngoId: widget.listing.ngoId, 
+          donorId: user.uid, 
+          donorName: name,
+          donorPhone: phone,
+          donorLocation: location,
+          status: 'pending',
+          createdAt: DateTime.now(),
+          donatedQuantity: inputDonatedAmount,
+        );
 
-      // Extract context metadata parsing for targeted notifications
-      String itemName = widget.listing.type == 'food' 
-          ? (widget.listing.foodType ?? "Food") 
-          : "$inputDonatedAmount ${widget.listing.unit ?? 'Items'} of ${widget.listing.productName ?? 'Products'}"; 
+        String itemName = widget.listing.type == 'food'
+            ? (widget.listing.foodType ?? "Food")
+            : "$inputDonatedAmount ${widget.listing.unit ?? 'Items'} of ${widget.listing.productName ?? 'Products'}";
 
-      // 2. Instantiating Alert payload for the NGO
-      NotificationModel alertForNGO = NotificationModel( 
-        id: newNotificationId, 
-        receiverId: widget.listing.ngoId, 
-        senderId: user.uid, 
-        senderName: name, 
-        type: 'donation_offer', 
-        title: 'New Donation Offer! 🎉', 
-        message: '$name wants to donate $itemName to you. Tap to view details and start chatting.', 
-        relatedItemId: newDonationId, 
-        createdAt: DateTime.now(), 
-      );
+        NotificationModel alertForNGO = NotificationModel(
+          id: newNotificationId,
+          receiverId: widget.listing.ngoId,
+          senderId: user.uid,
+          senderName: name,
+          type: 'donation_offer',
+          title: 'New Donation Offer 🎉',
+          message: '$name wants to donate $itemName to you. Tap to view details and start chatting.',
+          relatedItemId: newDonationId,
+          createdAt: DateTime.now(),
+          isRead: false,
+        );
 
-      // Instantiating Digital Receipt Alert payload for the Donor
-      NotificationModel alertForDonor = NotificationModel( 
-        id: FirebaseFirestore.instance.collection('notifications').doc().id, 
-        receiverId: user.uid, 
-        senderId: widget.listing.ngoId, 
-        senderName: widget.listing.ngoName, 
-        type: 'donation_offer', 
-        title: 'Donation Confirmed! ✅', 
-        message: 'Thank you for offering $itemName! Tap to view details and start a chat with the NGO.', 
-        relatedItemId: newDonationId, 
-        createdAt: DateTime.now(), 
-      );
+        NotificationModel alertForDonor = NotificationModel(
+          id: FirebaseFirestore.instance.collection('notifications').doc().id,
+          receiverId: user.uid,
+          senderId: widget.listing.ngoId,
+          senderName: widget.listing.ngoName,
+          type: 'donation_offer',
+          title: 'Donation Confirmed! ✅',
+          message: 'Thank you for offering $itemName! Tap to view details and start a chat with the NGO.',
+          relatedItemId: newDonationId,
+          createdAt: DateTime.now(),
+          isRead: false,
+        );
 
-      // Fixed: Prepended the underscore to call your correct class field variable
-      await _firestoreService.processDonation( 
-        donation: donation, 
-        notification: alertForNGO, 
-      );
+        // 2. Run your existing backend service (Added the missing underscores here!)
+        await _firestoreService.processDonation(
+          donation: donation,
+          notification: alertForNGO,
+        );
 
-      // Fixed: Prepended the underscore here as well
-      await _firestoreService.sendNotification(alertForDonor); 
+        // 3. THE MISSING FIX: Force the quantity field into the database so ProfileScreen can read it
+        await FirebaseFirestore.instance.collection('donations').doc(newDonationId).update({
+          'quantity': inputDonatedAmount,
+        });
 
-      if (!mounted) return;
+        await _firestoreService.sendNotification(alertForDonor);
+
+        if (!mounted) return;
+
+        
 
       // SUCCESS ANIMATION DIALOG
       showGeneralDialog( // [cite: 189]
@@ -202,7 +207,7 @@ class _DonationPageState extends State<DonationPage> {
                     ), // [cite: 216]
                     const SizedBox(height: 24), // [cite: 218]
                     const Text( // [cite: 219]
-                      "Donation Confirmed!", // [cite: 220]
+                      "Donation Confirmed! ✅",
                       textAlign: TextAlign.center, // [cite: 221]
                       style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.black87), // [cite: 222, 223]
                     ),
