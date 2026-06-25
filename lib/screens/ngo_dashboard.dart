@@ -2,45 +2,44 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'dart:math' as math; 
-// --- IMPORTS FOR SHARING ---
+import 'dart:math' as math;
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
-// -------------------------------
+
 import '../providers/auth_provider.dart';
 import '../models/post_model.dart';
 import 'create_post_screen.dart';
+import 'profile_screen.dart'; // Allows visiting profiles
 
 class NgoDashboard extends StatefulWidget {
   final String? targetPostId;
   const NgoDashboard({super.key, this.targetPostId});
 
   @override
-  State<NgoDashboard> createState() => _NgoDashboardState();
+  State<NgoDashboard> createState() => NgoDashboardState();
 }
 
-class _NgoDashboardState extends State<NgoDashboard> with TickerProviderStateMixin {
-  final Color themeColor = const Color(0xFFB56F76); // Your Dusky Rose
+class NgoDashboardState extends State<NgoDashboard> with TickerProviderStateMixin {
+  final Color themeColor = const Color(0xFFB56F76);
   final ScrollController _scrollController = ScrollController();
   bool _hasScrolled = false;
-  
   late AnimationController _bgController;
 
   @override
   void initState() {
     super.initState();
     _bgController = AnimationController(
-      duration: const Duration(seconds: 15), 
+      duration: const Duration(seconds: 15),
       vsync: this,
     )..repeat();
   }
 
   @override
   void dispose() {
-    _bgController.dispose(); 
+    _bgController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -51,7 +50,6 @@ class _NgoDashboardState extends State<NgoDashboard> with TickerProviderStateMix
       if (index != -1) {
         _hasScrolled = true;
         double offset = index * 550.0;
-
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (_scrollController.hasClients) {
             _scrollController.animateTo(
@@ -68,7 +66,6 @@ class _NgoDashboardState extends State<NgoDashboard> with TickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<AuthProvider>(context).currentUserModel;
-
     if (user == null) {
       return Center(child: CircularProgressIndicator(color: themeColor));
     }
@@ -77,9 +74,6 @@ class _NgoDashboardState extends State<NgoDashboard> with TickerProviderStateMix
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
-          // =========================================================
-          // RICHER DUSKY ROSE FLUID BACKGROUND
-          // =========================================================
           AnimatedBuilder(
             animation: _bgController,
             builder: (context, child) {
@@ -87,30 +81,25 @@ class _NgoDashboardState extends State<NgoDashboard> with TickerProviderStateMix
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment(
-                      math.cos(_bgController.value * math.pi * 2), 
+                      math.cos(_bgController.value * math.pi * 2),
                       math.sin(_bgController.value * math.pi * 2)
                     ),
                     end: Alignment(
-                      math.cos(_bgController.value * math.pi * 2 + math.pi), 
+                      math.cos(_bgController.value * math.pi * 2 + math.pi),
                       math.sin(_bgController.value * math.pi * 2 + math.pi)
                     ),
-                    // INCREASED INTENSITY: Deeper rose and peach tones
                     colors: const [
-                      Color(0xFFF2D9DB), // Soft rose
-                      Color(0xFFE5B8BD), // Richer dusky pink
-                      Color(0xFFDCA3A9), // Deepest accent rose
-                      Color(0xFFF5E1E4), // Light warm peach-pink
+                      Color(0xFFF2D9DB),
+                      Color(0xFFE5B8BD),
+                      Color(0xFFDCA3A9),
+                      Color(0xFFF5E1E4),
                     ],
                     stops: const [0.0, 0.35, 0.7, 1.0],
                   ),
                 ),
               );
-            },
+            }
           ),
-
-          // =========================================================
-          // EXISTING ACTIVITY FEED
-          // =========================================================
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('posts')
@@ -120,7 +109,6 @@ class _NgoDashboardState extends State<NgoDashboard> with TickerProviderStateMix
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return Center(child: CircularProgressIndicator(color: themeColor));
               }
-
               if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                 return _buildEmptyState(user.role);
               }
@@ -162,11 +150,11 @@ class _NgoDashboardState extends State<NgoDashboard> with TickerProviderStateMix
                             ? BoxDecoration(
                                 boxShadow: [
                                   BoxShadow(
-                                    color: themeColor.withOpacity(0.3),
+                                    color: themeColor.withValues(alpha: 0.3),
                                     blurRadius: 30,
                                     spreadRadius: 8,
-                                  ),
-                                ],
+                                  )
+                                ]
                               )
                             : const BoxDecoration(),
                         child: PostCardWidget(
@@ -184,36 +172,35 @@ class _NgoDashboardState extends State<NgoDashboard> with TickerProviderStateMix
           ),
         ],
       ),
-
-     floatingActionButton: user.role == 'ngo'
-    ? Padding(
-        padding: const EdgeInsets.only(bottom: 90),
-        child: FloatingActionButton(
-          backgroundColor: themeColor,
-          elevation: 6,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const CreatePostScreen(),
+      floatingActionButton: user.role == 'ngo'
+          ? Padding(
+              padding: const EdgeInsets.only(bottom: 90),
+              child: FloatingActionButton(
+                backgroundColor: themeColor,
+                elevation: 6,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      // FIXED ERROR: Added `context` here
+                      builder: (context) => const CreatePostScreen(),
+                    ),
+                  );
+                },
+                child: const Icon(
+                  Icons.add_rounded,
+                  color: Colors.white,
+                  size: 32,
+                ),
               ),
-            );
-          },
-          child: const Icon(
-            Icons.add_rounded,
-            color: Colors.white,
-            size: 32,
-          ),
-        ),
-      )
-    : null,
-floatingActionButtonLocation:
-    FloatingActionButtonLocation.endFloat,
-);
-}
+            )
+          : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+    );
+  }
 
   Widget _buildEmptyState(String? role) {
     return Center(
@@ -227,10 +214,10 @@ floatingActionButtonLocation:
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
+                  color: Colors.black.withValues(alpha: 0.03),
                   blurRadius: 15,
                   offset: const Offset(0, 5),
-                ),
+                )
               ],
             ),
             child: Icon(
@@ -266,9 +253,7 @@ floatingActionButtonLocation:
   }
 }
 
-// =====================================================================
 // POST CARD WIDGET
-// =====================================================================
 class PostCardWidget extends StatefulWidget {
   final PostModel post;
   final String ngoName;
@@ -289,13 +274,12 @@ class PostCardWidget extends StatefulWidget {
 
 class _PostCardWidgetState extends State<PostCardWidget> {
   bool _isLiked = false;
-  bool _isSharing = false; 
+  bool _isSharing = false;
 
   void _toggleLike() {
     setState(() {
       _isLiked = !_isLiked;
     });
-
     FirebaseFirestore.instance
         .collection('posts')
         .doc(widget.post.postId)
@@ -306,39 +290,30 @@ class _PostCardWidgetState extends State<PostCardWidget> {
     if (kIsWeb) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            "Sharing is only supported on mobile devices (Android/iOS).",
-          ),
+          content: Text("Sharing is only supported on mobile devices (Android/iOS)."),
         ),
       );
       return;
     }
-
     setState(() => _isSharing = true);
-
     try {
       final url = Uri.parse(widget.post.image);
       final response = await http.get(url);
       final bytes = response.bodyBytes;
-
       final tempDir = await getTemporaryDirectory();
       final path = '${tempDir.path}/shared_post_${widget.post.postId}.jpg';
       File(path).writeAsBytesSync(bytes);
 
       String textToShare = "${widget.post.description}\n\n";
-
       if (widget.post.donorId.isNotEmpty) {
-        textToShare += "✨ ${widget.post.donorId}\n\n";
+        textToShare += "Tagging: ${widget.post.donorId}\n\n";
       }
-
-      textToShare += "Shared via Charitey App❤️";
+      textToShare += "Shared via Charitey App";
 
       await Share.shareXFiles([XFile(path)], text: textToShare);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Error sharing post: $e")));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error sharing post: $e")));
       }
     } finally {
       if (mounted) setState(() => _isSharing = false);
@@ -350,9 +325,7 @@ class _PostCardWidgetState extends State<PostCardWidget> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Delete Post"),
-        content: const Text(
-          "Are you sure you want to delete this post? This cannot be undone.",
-        ),
+        content: const Text("Are you sure you want to delete this post? This cannot be undone."),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -361,23 +334,14 @@ class _PostCardWidgetState extends State<PostCardWidget> {
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              await FirebaseFirestore.instance
-                  .collection('posts')
-                  .doc(widget.post.postId)
-                  .delete();
+              await FirebaseFirestore.instance.collection('posts').doc(widget.post.postId).delete();
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("Post deleted"),
-                    backgroundColor: Colors.red,
-                  ),
+                  const SnackBar(content: Text("Post deleted"), backgroundColor: Colors.red),
                 );
               }
             },
-            child: const Text(
-              "Delete",
-              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-            ),
+            child: const Text("Delete", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -385,12 +349,8 @@ class _PostCardWidgetState extends State<PostCardWidget> {
   }
 
   void _editPost() {
-    TextEditingController descController = TextEditingController(
-      text: widget.post.description,
-    );
-    TextEditingController tagController = TextEditingController(
-      text: widget.post.donorId,
-    );
+    TextEditingController descController = TextEditingController(text: widget.post.description);
+    TextEditingController tagController = TextEditingController(text: widget.post.donorId);
 
     showDialog(
       context: context,
@@ -431,19 +391,13 @@ class _PostCardWidgetState extends State<PostCardWidget> {
             ),
             onPressed: () async {
               Navigator.pop(context);
-              await FirebaseFirestore.instance
-                  .collection('posts')
-                  .doc(widget.post.postId)
-                  .update({
-                    'description': descController.text.trim(),
-                    'donorId': tagController.text.trim(),
-                  });
+              await FirebaseFirestore.instance.collection('posts').doc(widget.post.postId).update({
+                'description': descController.text.trim(),
+                'donorId': tagController.text.trim(),
+              });
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("Post updated!"),
-                    backgroundColor: Colors.green,
-                  ),
+                  const SnackBar(content: Text("Post updated!"), backgroundColor: Colors.green),
                 );
               }
             },
@@ -457,6 +411,7 @@ class _PostCardWidgetState extends State<PostCardWidget> {
   @override
   Widget build(BuildContext context) {
     String formattedDate = DateFormat('MMM d, yyyy').format(widget.post.createdAt);
+    // FIXED ERROR: Uses exact property ngoId to check ownership
     bool isMyPost = widget.post.ngoId == widget.currentUserId;
 
     return Container(
@@ -466,58 +421,73 @@ class _PostCardWidgetState extends State<PostCardWidget> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06), 
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
         ],
-        border: Border.all(color: Colors.white, width: 2), 
+        border: Border.all(color: Colors.white, width: 2),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                CircleAvatar(
-                  radius: 22,
-                  backgroundColor: widget.themeColor.withOpacity(0.15),
-                  child: Text(
-                    widget.ngoName[0].toUpperCase(),
-                    style: TextStyle(
-                      color: widget.themeColor,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 18
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 14),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.ngoName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 15.5,
-                          letterSpacing: 0.2,
-                          color: Colors.black87
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ProfileScreen(visitedUserId: widget.post.ngoId),
                         ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        formattedDate,
-                        style: TextStyle(
-                          color: Colors.grey.shade500,
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600
+                      );
+                    },
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 22,
+                          backgroundColor: widget.themeColor.withValues(alpha: 0.15),
+                          child: Text(
+                            widget.ngoName.isNotEmpty ? widget.ngoName[0].toUpperCase() : 'N',
+                            style: TextStyle(
+                              color: widget.themeColor,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 18
+                            )
+                          )
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.ngoName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 15.5,
+                                  letterSpacing: 0.2,
+                                  color: Colors.black87
+                                )
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                formattedDate,
+                                style: TextStyle(
+                                  color: Colors.grey.shade500,
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600
+                                )
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 if (isMyPost)
@@ -537,7 +507,7 @@ class _PostCardWidgetState extends State<PostCardWidget> {
                             SizedBox(width: 12),
                             Text('Edit', style: TextStyle(fontWeight: FontWeight.w600)),
                           ],
-                        ),
+                        )
                       ),
                       const PopupMenuItem(
                         value: 'delete',
@@ -547,14 +517,13 @@ class _PostCardWidgetState extends State<PostCardWidget> {
                             SizedBox(width: 12),
                             Text('Delete', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600)),
                           ],
-                        ),
+                        )
                       ),
                     ],
                   ),
               ],
             ),
           ),
-
           Container(
             width: double.infinity,
             constraints: const BoxConstraints(maxHeight: 380),
@@ -568,7 +537,6 @@ class _PostCardWidgetState extends State<PostCardWidget> {
               ),
             ),
           ),
-
           Padding(
             padding: const EdgeInsets.only(left: 16, right: 16, top: 14, bottom: 8),
             child: Row(
@@ -589,7 +557,6 @@ class _PostCardWidgetState extends State<PostCardWidget> {
                   ),
                 ),
                 const SizedBox(width: 18),
-                
                 GestureDetector(
                   onTap: _isSharing ? null : _sharePost,
                   child: _isSharing
@@ -610,7 +577,6 @@ class _PostCardWidgetState extends State<PostCardWidget> {
               ],
             ),
           ),
-
           Padding(
             padding: const EdgeInsets.only(left: 16, right: 16, bottom: 20),
             child: Column(
@@ -639,7 +605,7 @@ class _PostCardWidgetState extends State<PostCardWidget> {
                         ),
                       TextSpan(
                         text: widget.post.description,
-                        style: const TextStyle(fontWeight: FontWeight.w400)
+                        style: const TextStyle(fontWeight: FontWeight.w400),
                       ),
                     ],
                   ),
