@@ -10,7 +10,6 @@ import '../providers/auth_provider.dart';
 
 class DonationPage extends StatefulWidget {
   final NgoListingModel listing;
-
   const DonationPage({Key? key, required this.listing}) : super(key: key);
 
   @override
@@ -19,34 +18,36 @@ class DonationPage extends StatefulWidget {
 
 class _DonationPageState extends State<DonationPage> {
   final FirestoreService _firestoreService = FirestoreService();
-  
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _donationQuantityController = TextEditingController();
-
+  
   bool _isLoading = false;
-  final Color themeColor = const Color(0xFF7D444C); // Dark theme palette configuration
+  final Color themeColor = const Color(0xFF7D444C); 
 
-  // Helper variables to track balance mechanics
   int totalNeeded = 0;
   int alreadyFulfilled = 0;
   int remainingNeeded = 0;
+  
+  // NEW: Variable to track the interactive slider
+  double _sliderValue = 0.0; 
 
   @override
   void initState() {
     super.initState();
-    
-    // Calculate quantities for products
     totalNeeded = widget.listing.quantity ?? 0;
     alreadyFulfilled = widget.listing.fulfilledQuantity ?? 0;
     remainingNeeded = totalNeeded - alreadyFulfilled;
     if (remainingNeeded < 0) remainingNeeded = 0;
 
-    // Default the donation capability field to full remaining balance for easier user experience
     if (widget.listing.type == 'product') {
       _donationQuantityController.text = remainingNeeded.toString();
+      _sliderValue = remainingNeeded.toDouble(); // Set initial slider value
     }
+
+    // NEW: Add listener to sync typing with the slider
+    _donationQuantityController.addListener(_updateSliderFromText);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final user = Provider.of<AuthProvider>(context, listen: false).currentUserModel;
@@ -58,8 +59,23 @@ class _DonationPageState extends State<DonationPage> {
     });
   }
 
+  // NEW: Sync function for the slider
+  void _updateSliderFromText() {
+    if (_donationQuantityController.text.isEmpty) {
+      setState(() => _sliderValue = 0.0);
+      return;
+    }
+    double? val = double.tryParse(_donationQuantityController.text);
+    if (val != null) {
+      if (val > remainingNeeded) val = remainingNeeded.toDouble();
+      if (val < 0) val = 0.0;
+      setState(() => _sliderValue = val!);
+    }
+  }
+
   @override
   void dispose() {
+    _donationQuantityController.removeListener(_updateSliderFromText);
     _nameController.dispose();
     _locationController.dispose();
     _phoneController.dispose();
@@ -67,172 +83,168 @@ class _DonationPageState extends State<DonationPage> {
     super.dispose();
   }
 
-  Future<void> _donate() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false); 
-    final user = authProvider.currentUserModel; 
-    if (user == null) { 
-      ScaffoldMessenger.of(context).showSnackBar( 
-        const SnackBar(content: Text('User not found. Please log in again.')) 
+  Future<void> donate() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final user = authProvider.currentUserModel;
+    
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User not found. Please log in again.'))
       );
-      return; 
+      return;
     }
 
-    String name = _nameController.text.trim(); 
-    String location = _locationController.text.trim(); 
-    String phone = _phoneController.text.trim(); 
-    int inputDonatedAmount = remainingNeeded; // Default whole amount for non-products (food) 
+    String name = _nameController.text.trim();
+    String location = _locationController.text.trim();
+    String phone = _phoneController.text.trim();
+    int inputDonatedAmount = remainingNeeded; 
 
-    if (name.isEmpty || location.isEmpty || phone.isEmpty) { 
-      ScaffoldMessenger.of(context).showSnackBar( 
-        const SnackBar(content: Text('Please fill all fields')) 
+    if (name.isEmpty || location.isEmpty || phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill all fields'))
       );
-      return; 
+      return;
     }
 
-    // Validation rule block for product partial capabilities
-    if (widget.listing.type == 'product') { 
-      final inputQty = int.tryParse(_donationQuantityController.text.trim()); 
-      if (inputQty == null || inputQty <= 0) { 
-        ScaffoldMessenger.of(context).showSnackBar( 
-          const SnackBar(content: Text('Please enter a valid donation quantity')) 
+    if (widget.listing.type == 'product') {
+      final inputQty = int.tryParse(_donationQuantityController.text.trim());
+      if (inputQty == null || inputQty <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter a valid donation quantity'))
         );
-        return; 
+        return;
       }
-      if (inputQty > remainingNeeded) { 
-        ScaffoldMessenger.of(context).showSnackBar( 
-          SnackBar(content: Text('You cannot donate more than remaining items needed ($remainingNeeded)')) 
+      if (inputQty > remainingNeeded) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('You cannot donate more than remaining items needed ($remainingNeeded)'))
         );
-        return; 
+        return;
       }
-      inputDonatedAmount = inputQty; 
+      inputDonatedAmount = inputQty;
     }
 
-    setState(() { 
-      _isLoading = true; 
+    setState(() {
+      _isLoading = true;
     });
 
     try {
-        String newDonationId = FirebaseFirestore.instance.collection('donations').doc().id;
-        String newNotificationId = FirebaseFirestore.instance.collection('notifications').doc().id;
+      String newDonationId = FirebaseFirestore.instance.collection('donations').doc().id;
+      String newNotificationId = FirebaseFirestore.instance.collection('notifications').doc().id;
 
-        // 1. Instantiating Donation record object payload
-        DonationModel donation = DonationModel(
-          donationId: newDonationId,
-          listingId: widget.listing.listingId,
-          ngoId: widget.listing.ngoId, 
-          donorId: user.uid, 
-          donorName: name,
-          donorPhone: phone,
-          donorLocation: location,
-          status: 'pending',
-          createdAt: DateTime.now(),
-          donatedQuantity: inputDonatedAmount,
-        );
+      DonationModel donation = DonationModel(
+        donationId: newDonationId,
+        listingId: widget.listing.listingId,
+        ngoId: widget.listing.ngoId, 
+        donorId: user.uid, 
+        donorName: name,
+        donorPhone: phone,
+        donorLocation: location,
+        status: 'pending',
+        createdAt: DateTime.now(),
+        donatedQuantity: inputDonatedAmount,
+      );
 
-        String itemName = widget.listing.type == 'food'
-            ? (widget.listing.foodType ?? "Food")
-            : "$inputDonatedAmount ${widget.listing.unit ?? 'Items'} of ${widget.listing.productName ?? 'Products'}";
+      String itemName = widget.listing.type == 'food'
+          ? (widget.listing.foodType ?? "Food")
+          : "$inputDonatedAmount ${widget.listing.unit ?? 'Items'} of ${widget.listing.productName ?? 'Products'}";
 
-        NotificationModel alertForNGO = NotificationModel(
-          id: newNotificationId,
-          receiverId: widget.listing.ngoId,
-          senderId: user.uid,
-          senderName: name,
-          type: 'donation_offer',
-          title: 'New Donation Offer 🎉',
-          message: '$name wants to donate $itemName to you. Tap to view details and start chatting.',
-          relatedItemId: newDonationId,
-          createdAt: DateTime.now(),
-          isRead: false,
-        );
+      NotificationModel alertForNGO = NotificationModel(
+        id: newNotificationId,
+        receiverId: widget.listing.ngoId,
+        senderId: user.uid,
+        senderName: name,
+        type: 'donation_offer',
+        title: 'New Donation Offer! 🎉',
+        message: '$name wants to donate $itemName to you. Tap to view details and start chatting.',
+        relatedItemId: newDonationId,
+        createdAt: DateTime.now(),
+        isRead: false,
+      );
 
-        NotificationModel alertForDonor = NotificationModel(
-          id: FirebaseFirestore.instance.collection('notifications').doc().id,
-          receiverId: user.uid,
-          senderId: widget.listing.ngoId,
-          senderName: widget.listing.ngoName,
-          type: 'donation_offer',
-          title: 'Donation Confirmed! ✅',
-          message: 'Thank you for offering $itemName! Tap to view details and start a chat with the NGO.',
-          relatedItemId: newDonationId,
-          createdAt: DateTime.now(),
-          isRead: false,
-        );
+      NotificationModel alertForDonor = NotificationModel(
+        id: FirebaseFirestore.instance.collection('notifications').doc().id,
+        receiverId: user.uid,
+        senderId: widget.listing.ngoId,
+        senderName: widget.listing.ngoName,
+        type: 'donation_offer',
+        title: 'Donation Confirmed! ✅',
+        message: 'Thank you for offering $itemName! Tap to view details and start a chat with the NGO.',
+        relatedItemId: newDonationId,
+        createdAt: DateTime.now(),
+        isRead: false,
+      );
 
-        // 2. Run your existing backend service (Added the missing underscores here!)
-        await _firestoreService.processDonation(
-          donation: donation,
-          notification: alertForNGO,
-        );
+      // Backend transaction
+      await _firestoreService.processDonation(
+        donation: donation,
+        notification: alertForNGO,
+      );
 
-        // 3. THE MISSING FIX: Force the quantity field into the database so ProfileScreen can read it
-        await FirebaseFirestore.instance.collection('donations').doc(newDonationId).update({
-          'quantity': inputDonatedAmount,
-        });
+      // Force the quantity field so ProfileScreen can read it
+      await FirebaseFirestore.instance.collection('donations').doc(newDonationId).update({
+        'quantity': inputDonatedAmount,
+      });
 
-        await _firestoreService.sendNotification(alertForDonor);
+      await _firestoreService.sendNotification(alertForDonor);
 
-        if (!mounted) return;
+      if (!mounted) return;
 
-        
-
-      // SUCCESS ANIMATION DIALOG
-      showGeneralDialog( // [cite: 189]
-        context: context, // [cite: 190]
-        barrierDismissible: false, // [cite: 191]
-        barrierColor: Colors.black.withValues(alpha: 0.6), // [cite: 192]
-        transitionDuration: const Duration(milliseconds: 500), // [cite: 192]
-        pageBuilder: (context, animation, secondaryAnimation) => const SizedBox(), // [cite: 192, 193]
-        transitionBuilder: (context, animation, secondaryAnimation, child) { // [cite: 194, 195]
-          return ScaleTransition( // [cite: 196]
-            scale: Tween<double>(begin: 0.4, end: 1.0).animate( // [cite: 197]
-              CurvedAnimation(parent: animation, curve: Curves.elasticOut), // [cite: 198]
-            ), // [cite: 199]
-            child: FadeTransition( // [cite: 200]
-              opacity: animation, // [cite: 201]
-              child: AlertDialog( // [cite: 202]
-                backgroundColor: Colors.white, // [cite: 203]
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)), // [cite: 204, 205]
-                contentPadding: const EdgeInsets.all(30), // [cite: 206]
-                content: Column( // [cite: 207]
-                  mainAxisSize: MainAxisSize.min, // [cite: 208]
-                  children: [ // [cite: 209]
-                    Container( // [cite: 210]
-                      padding: const EdgeInsets.all(20), // [cite: 211]
-                      decoration: BoxDecoration( // [cite: 212]
-                        color: themeColor.withValues(alpha: 0.1), // [cite: 213]
-                        shape: BoxShape.circle, // [cite: 214]
+      showGeneralDialog(
+        context: context,
+        barrierDismissible: false,
+        barrierColor: Colors.black.withOpacity(0.6),
+        transitionDuration: const Duration(milliseconds: 500),
+        pageBuilder: (context, animation, secondaryAnimation) => const SizedBox(),
+        transitionBuilder: (context, animation, secondaryAnimation, child) {
+          return ScaleTransition(
+            scale: Tween<double>(begin: 0.4, end: 1.0).animate(
+              CurvedAnimation(parent: animation, curve: Curves.elasticOut),
+            ),
+            child: FadeTransition(
+              opacity: animation,
+              child: AlertDialog(
+                backgroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                contentPadding: const EdgeInsets.all(30),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: themeColor.withOpacity(0.1),
+                        shape: BoxShape.circle,
                       ),
-                      child: Icon(Icons.volunteer_activism_rounded, color: themeColor, size: 60), // [cite: 215, 217]
-                    ), // [cite: 216]
-                    const SizedBox(height: 24), // [cite: 218]
-                    const Text( // [cite: 219]
-                      "Donation Confirmed! ✅",
-                      textAlign: TextAlign.center, // [cite: 221]
-                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.black87), // [cite: 222, 223]
+                      child: Icon(Icons.volunteer_activism_rounded, color: themeColor, size: 60),
                     ),
-                    const SizedBox(height: 12), // [cite: 224]
-                    Text( // [cite: 225]
-                      "Your generosity is making a real difference. An NGO will review this shortly.", // [cite: 226, 227]
-                      textAlign: TextAlign.center, // [cite: 228]
-                      style: TextStyle(fontSize: 14, color: Colors.grey.shade600, height: 1.4), // [cite: 229, 230]
-                    ), // [cite: 231]
-                    const SizedBox(height: 30), // [cite: 232]
-                    SizedBox( // [cite: 233]
-                      width: double.infinity, // [cite: 234]
-                      child: ElevatedButton( // [cite: 235]
-                        onPressed: () { // [cite: 236]
-                          Navigator.pop(context); // [cite: 238]
-                          Navigator.pop(context); // [cite: 239]
-                        }, // [cite: 237]
-                        style: ElevatedButton.styleFrom( // [cite: 240]
-                          backgroundColor: themeColor, // [cite: 241]
-                          foregroundColor: Colors.white, // [cite: 243]
-                          padding: const EdgeInsets.symmetric(vertical: 16), // [cite: 244]
-                          elevation: 0, // [cite: 245]
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), // [cite: 246, 247]
+                    const SizedBox(height: 24),
+                    const Text(
+                      "Donation Confirmed! ✅",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.black87),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      "Your generosity is making a real difference. An NGO will review this shortly.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 14, color: Colors.grey.shade600, height: 1.4),
+                    ),
+                    const SizedBox(height: 30),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          Navigator.pop(context);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: themeColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         ),
-                        child: const Text("Awesome!", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.0)), // [cite: 249, 250]
+                        child: const Text("Awesome!", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
                       ),
                     ),
                   ],
@@ -242,18 +254,50 @@ class _DonationPageState extends State<DonationPage> {
           );
         },
       );
-    } catch (e) { // [cite: 255]
-      if (!mounted) return; // [cite: 256]
-      ScaffoldMessenger.of(context).showSnackBar( // [cite: 257]
-        SnackBar(content: Text('Donation failed: ${e.toString().replaceAll('Exception: ', '')}')) // [cite: 257, 258]
-      ); // [cite: 259]
-    } finally { // [cite: 260]
-      if (mounted) { // [cite: 261]
-        setState(() { // [cite: 262]
-          _isLoading = false; // [cite: 263]
-        }); // [cite: 265]
-      } // [cite: 264]
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Donation failed: ${e.toString().replaceAll('Exception: ', '')}'))
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
+  }
+
+  Widget _buildInputField({
+    required String hint,
+    required IconData icon,
+    required TextEditingController controller,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: controller,
+        keyboardType: keyboardType,
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 15),
+          prefixIcon: Icon(icon, color: Colors.grey.shade400, size: 22),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+        ),
+      ),
+    );
   }
 
   @override
@@ -276,7 +320,6 @@ class _DonationPageState extends State<DonationPage> {
       ),
       body: Stack(
         children: [
-          // BACKGROUND GRADIENT
           Positioned(
             top: 0,
             left: 0,
@@ -287,39 +330,32 @@ class _DonationPageState extends State<DonationPage> {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [
-                    themeColor.withValues(alpha: 0.12),
-                    Colors.transparent,
-                  ],
+                  colors: [themeColor.withOpacity(0.12), Colors.transparent],
                 ),
               ),
             ),
           ),
-
-          // FOREGROUND CONTENT
           SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
                 return SingleChildScrollView(
                   padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 10.0),
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight - 20,
-                    ),
+                    constraints: BoxConstraints(minHeight: constraints.maxHeight - 20),
                     child: IntrinsicHeight(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const SizedBox(height: 10),
-
-                          // --- "RECEIPT" SUMMARY CARD ---
+                          
+                          // --- "RECEIPT" SUMMARY CARD
                           Container(
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(20),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.05),
+                                  color: Colors.black.withOpacity(0.05),
                                   blurRadius: 20,
                                   offset: const Offset(0, 8),
                                 ),
@@ -331,7 +367,7 @@ class _DonationPageState extends State<DonationPage> {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                                   decoration: BoxDecoration(
-                                    color: themeColor.withValues(alpha: 0.05),
+                                    color: themeColor.withOpacity(0.05),
                                     borderRadius: const BorderRadius.only(
                                       topLeft: Radius.circular(20),
                                       topRight: Radius.circular(20),
@@ -348,7 +384,6 @@ class _DonationPageState extends State<DonationPage> {
                                     ],
                                   ),
                                 ),
-
                                 Padding(
                                   padding: const EdgeInsets.all(20),
                                   child: Column(
@@ -373,14 +408,13 @@ class _DonationPageState extends State<DonationPage> {
                                           ),
                                         ],
                                       ),
-
                                       const Padding(
                                         padding: EdgeInsets.symmetric(vertical: 20.0),
                                         child: Divider(height: 1, thickness: 1.5),
                                       ),
-
                                       Row(
                                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           Column(
                                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -398,12 +432,15 @@ class _DonationPageState extends State<DonationPage> {
                                           Column(
                                             crossAxisAlignment: CrossAxisAlignment.end,
                                             children: [
-                                              Text(widget.listing.type == 'food' ? 'Quantity' : 'Total Request', style: TextStyle(fontSize: 13, color: Colors.grey.shade500)),
+                                              Text(
+                                                widget.listing.type == 'food' ? 'Quantity' : 'Total Request',
+                                                style: TextStyle(fontSize: 13, color: Colors.grey.shade500)
+                                              ),
                                               const SizedBox(height: 4),
                                               Container(
                                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                                 decoration: BoxDecoration(
-                                                  color: themeColor.withValues(alpha: 0.1),
+                                                  color: themeColor.withOpacity(0.1),
                                                   borderRadius: BorderRadius.circular(8),
                                                 ),
                                                 child: Text(
@@ -416,7 +453,6 @@ class _DonationPageState extends State<DonationPage> {
                                         ],
                                       ),
 
-                                      // --- NEW: Product Balance Tracking Visual Sub-block ---
                                       if (widget.listing.type == 'product') ...[
                                         const SizedBox(height: 16),
                                         Container(
@@ -463,10 +499,9 @@ class _DonationPageState extends State<DonationPage> {
                               ],
                             ),
                           ),
-
                           const SizedBox(height: 30),
 
-                          // --- NEW: USER CAPABILITY QUANTITY INPUT BLOCK (Products Only) ---
+                          // --- NEW: INTERACTIVE SLIDER SECTION
                           if (widget.listing.type == 'product') ...[
                             const Text(
                               'Specify Your Donation Quantity',
@@ -478,16 +513,47 @@ class _DonationPageState extends State<DonationPage> {
                               style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
                             ),
                             const SizedBox(height: 12),
+                            
                             _buildInputField(
-                              hint: 'Enter quantity you can give (Max: $remainingNeeded)',
+                              hint: 'Enter quantity (Max: $remainingNeeded)',
                               icon: Icons.numbers_rounded,
                               controller: _donationQuantityController,
                               keyboardType: TextInputType.number,
                             ),
+                            
+                            const SizedBox(height: 8),
+
+                            // The Interactive Slider
+                            SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                activeTrackColor: themeColor,
+                                inactiveTrackColor: themeColor.withOpacity(0.2),
+                                thumbColor: themeColor,
+                                overlayColor: themeColor.withOpacity(0.1),
+                                trackHeight: 8.0,
+                                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 12.0),
+                              ),
+                              child: Slider(
+                                value: _sliderValue,
+                                min: 0,
+                                max: remainingNeeded > 0 ? remainingNeeded.toDouble() : 1.0, 
+                                divisions: remainingNeeded > 0 ? remainingNeeded : 1, 
+                                onChanged: remainingNeeded > 0 ? (value) {
+                                  setState(() {
+                                    _sliderValue = value;
+                                    _donationQuantityController.value = TextEditingValue(
+                                      text: value.toInt().toString(),
+                                      selection: TextSelection.collapsed(offset: value.toInt().toString().length),
+                                    );
+                                  });
+                                } : null,
+                              ),
+                            ),
+                            
                             const SizedBox(height: 24),
                           ],
 
-                          // --- FORM HEADER ---
+                          // --- FORM HEADER
                           const Text(
                             'Your Pickup Details',
                             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.black87),
@@ -499,7 +565,7 @@ class _DonationPageState extends State<DonationPage> {
                           ),
                           const SizedBox(height: 16),
 
-                          // --- VOLUNTEER ALERT BANNER ---
+                          // --- VOLUNTEER ALERT BANNER
                           if (widget.listing.isVolunteerAvailable == true) ...[
                             Container(
                               padding: const EdgeInsets.all(14),
@@ -529,7 +595,9 @@ class _DonationPageState extends State<DonationPage> {
                                         ),
                                         const SizedBox(height: 2),
                                         Text(
-                                          "This NGO has a volunteer ready to pick up your donation. Just confirm your address below.",
+                                          widget.listing.type == 'product'
+                                              ? "This NGO has a volunteer ready to pick up your donation. Since they are coming to you, please consider donating as many items as possible! Just confirm your address below."
+                                              : "This NGO has a volunteer ready to pick up your donation. Just confirm your address below.",
                                           style: TextStyle(fontSize: 12, color: Colors.green.shade800),
                                         ),
                                       ],
@@ -541,44 +609,41 @@ class _DonationPageState extends State<DonationPage> {
                             const SizedBox(height: 16),
                           ],
 
-                          // --- INPUT FIELDS ---
+                          // --- INPUT FIELDS
                           _buildInputField(
                             hint: 'Your Full Name',
                             icon: Icons.person_outline_rounded,
                             controller: _nameController,
                           ),
                           const SizedBox(height: 12),
-
                           _buildInputField(
                             hint: 'Exact Pickup Location',
                             icon: Icons.location_on_outlined,
                             controller: _locationController,
                           ),
                           const SizedBox(height: 12),
-
                           _buildInputField(
                             hint: 'Contact Phone Number',
                             icon: Icons.phone_outlined,
                             controller: _phoneController,
                             keyboardType: TextInputType.phone,
                           ),
-
                           const SizedBox(height: 24),
 
-                          // --- WARM IMPACT NOTE ---
+                          // --- WARM IMPACT NOTE
                           Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: themeColor.withValues(alpha: 0.2)),
+                              border: Border.all(color: themeColor.withOpacity(0.2)),
                             ),
                             child: Row(
                               children: [
                                 Container(
                                   padding: const EdgeInsets.all(10),
                                   decoration: BoxDecoration(
-                                    color: themeColor.withValues(alpha: 0.1),
+                                    color: themeColor.withOpacity(0.1),
                                     shape: BoxShape.circle,
                                   ),
                                   child: Icon(Icons.favorite_rounded, color: themeColor, size: 24),
@@ -587,35 +652,29 @@ class _DonationPageState extends State<DonationPage> {
                                 Expanded(
                                   child: Text(
                                     widget.listing.type == 'food'
-                                      ? "Your donation will directly help reduce food waste and feed those in need. Thank you!"
-                                      : "Your donation helps fulfill this request piece by piece. Every item makes a big impact!",
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.grey.shade700,
-                                      height: 1.4,
-                                    ),
+                                        ? "Your donation will directly help reduce food waste and feed those in need. Thank you!"
+                                        : "Your donation helps fulfill this request piece by piece. Every item makes a big impact!",
+                                    style: TextStyle(fontSize: 13, color: Colors.grey.shade700, height: 1.4),
                                   ),
                                 ),
                               ],
                             ),
                           ),
-
+                          
                           const Spacer(),
                           const SizedBox(height: 20),
 
-                          // --- SUBMIT BUTTON ---
+                          // --- SUBMIT BUTTON
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
-                              onPressed: _isLoading ? null : _donate,
+                              onPressed: _isLoading ? null : donate,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: themeColor,
                                 padding: const EdgeInsets.symmetric(vertical: 18),
                                 elevation: 4,
-                                shadowColor: themeColor.withValues(alpha: 0.4),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(30),
-                                ),
+                                shadowColor: themeColor.withOpacity(0.4),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                               ),
                               child: _isLoading
                                   ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
@@ -626,7 +685,6 @@ class _DonationPageState extends State<DonationPage> {
                             ),
                           ),
 
-                          // Small security configuration banner footer
                           Padding(
                             padding: const EdgeInsets.only(top: 12.0, bottom: 20.0),
                             child: Center(
@@ -652,33 +710,6 @@ class _DonationPageState extends State<DonationPage> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildInputField({required String hint, required IconData icon, required TextEditingController controller, TextInputType keyboardType = TextInputType.text}) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: TextField(
-        controller: controller,
-        keyboardType: keyboardType,
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 15),
-          prefixIcon: Icon(icon, color: Colors.grey.shade400, size: 22),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-        ),
       ),
     );
   }

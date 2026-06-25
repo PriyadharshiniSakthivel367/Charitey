@@ -11,13 +11,11 @@ class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({Key? key}) : super(key: key);
 
   // --- PRIVATE HELPER TO FETCH REAL TIME DATA DYNAMICALLY ---
-  // This function fetches the specific request/donation data and joins the correct NGO or sender profiles from the 'users' collection.
   Future<Map<String, dynamic>> _fetchDetailsData(NotificationModel notif, bool isDonationOffer, bool amINGO) async {
     Map<String, dynamic> result = {};
 
     try {
       if (isDonationOffer) {
-        // 1. Fetch the specific donation request document
         DocumentSnapshot donationSnap = await FirebaseFirestore.instance
             .collection('donations')
             .doc(notif.relatedItemId)
@@ -27,7 +25,6 @@ class NotificationsScreen extends StatelessWidget {
           var donationData = donationSnap.data() as Map<String, dynamic>;
           result['donationData'] = donationData;
 
-          // 2. If current user is the donor, fetch the specific requested NGO's profile
           if (!amINGO) {
             String? ngoId = donationData['ngoId'] ?? notif.receiverId;
             if (ngoId != null && ngoId.isNotEmpty) {
@@ -42,7 +39,6 @@ class NotificationsScreen extends StatelessWidget {
           }
         }
       } else {
-        // 3. For messages/tags, fetch the real-time sender profile details to prevent random or missing data
         DocumentSnapshot senderSnap = await FirebaseFirestore.instance
             .collection('users')
             .doc(notif.senderId)
@@ -111,7 +107,6 @@ class NotificationsScreen extends StatelessWidget {
               if (isDonationOffer) {
                 var donationData = fetchedData['donationData'] ?? {};
                 if (amINGO) {
-                  // NGO is looking at the offer -> Show Donor Details
                   displayTitle = "Offered By:";
                   nameLabel = "Donor Name";
                   locationLabel = "Pickup Location";
@@ -120,21 +115,17 @@ class NotificationsScreen extends StatelessWidget {
                   contactLocation = donationData['donorLocation'] ?? 'Unknown Location';
                   targetChatId = donationData['donorId'] ?? notif.senderId; 
                 } else {
-                  // Donor is looking at their receipt -> Show specific created NGO details
                   displayTitle = "Donating To:";
                   nameLabel = "Organization Name";
                   locationLabel = "Drop-off/NGO Location";
                   
                   var ngoProfile = fetchedData['ngoProfileData'] ?? {};
-                  
-                  // Dynamically resolves name, phone, and address from the exact NGO profile or fallback entries
                   contactName = ngoProfile['ngoName'] ?? ngoProfile['name'] ?? donationData['ngoName'] ?? 'Unknown NGO'; 
                   contactPhone = ngoProfile['phone'] ?? ngoProfile['ngoPhone'] ?? donationData['ngoPhone'] ?? 'Not Provided'; 
                   contactLocation = ngoProfile['address'] ?? ngoProfile['location'] ?? donationData['ngoLocation'] ?? 'Not Provided';
                   targetChatId = donationData['ngoId'] ?? notif.receiverId; 
                 }
               } else {
-                // Standard Message/Tag Notification Logic
                 var senderProfile = fetchedData['senderProfileData'] ?? {};
                 var notifData = fetchedData['notifData'] ?? {};
                 
@@ -180,8 +171,7 @@ class NotificationsScreen extends StatelessWidget {
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       onPressed: () {
-                        Navigator.pop(context); // Close the popup
-                        
+                        Navigator.pop(context); 
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -212,6 +202,130 @@ class NotificationsScreen extends StatelessWidget {
           )
         );
       }
+    );
+  }
+
+  // ============================================================================
+  // NEW: DONOR CANCELLATION DETAILS BOTTOM SHEET
+  // ============================================================================
+  void _showDonorCancellationDetails(BuildContext context, NotificationModel notification, Color themeColor) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      builder: (context) {
+        return FutureBuilder<DocumentSnapshot>(
+          future: FirebaseFirestore.instance.collection('users').doc(notification.senderId).get(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return SizedBox(height: 200, child: Center(child: CircularProgressIndicator(color: themeColor)));
+            }
+
+            if (!snapshot.hasData || !snapshot.data!.exists) {
+              return const SizedBox(height: 200, child: Center(child: Text("Donor details no longer available.")));
+            }
+
+            var donorData = snapshot.data!.data() as Map<String, dynamic>;
+            String contactName = donorData['name'] ?? notification.senderName;
+
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    "Cancellation Details",
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Shows the reason and the phone number parsed from the profile screen
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.red.shade100),
+                    ),
+                    child: Text(
+                      notification.message, 
+                      style: TextStyle(color: Colors.red.shade900, fontSize: 14, height: 1.4),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  const Text("Donor Information", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  const SizedBox(height: 16),
+                  
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: CircleAvatar(
+                      radius: 25,
+                      backgroundColor: Colors.grey.shade200,
+                      backgroundImage: donorData['profileImage'] != null && donorData['profileImage'].toString().isNotEmpty
+                          ? NetworkImage(donorData['profileImage'])
+                          : null,
+                      child: donorData['profileImage'] == null || donorData['profileImage'].toString().isEmpty
+                          ? Icon(Icons.person, color: Colors.grey.shade400, size: 30)
+                          : null,
+                    ),
+                    title: Text(contactName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 6),
+                        Text("📞 ${donorData['phone'] ?? 'No phone provided'}", style: TextStyle(color: Colors.grey.shade700)),
+                        const SizedBox(height: 4),
+                        Text("📍 ${donorData['location'] ?? 'No location provided'}", style: TextStyle(color: Colors.grey.shade700)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                  
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context); 
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ChatScreen(
+                              otherUserId: notification.senderId,
+                              otherUserName: contactName,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.chat_bubble_rounded, color: Colors.white),
+                      label: const Text("Open Chat with Donor", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: themeColor,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        elevation: 0,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -295,6 +409,9 @@ class NotificationsScreen extends StatelessWidget {
               bool isMessage = notif.type == 'new_message';
               bool isTag = notif.type == 'tag'; 
               bool isDonationOffer = notif.type == 'donation_offer';
+              
+              // NEW: Identifies a cancellation notification
+              bool isCancellation = notif.type == 'donation_cancelled';
 
               return Container(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -308,17 +425,18 @@ class NotificationsScreen extends StatelessWidget {
                 child: ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   leading: CircleAvatar(
-                    backgroundColor: themeColor.withValues(alpha: 0.1),
+                    backgroundColor: isCancellation ? Colors.red.shade50 : themeColor.withValues(alpha: 0.1),
                     child: Icon(
-                      isTag ? Icons.photo_library_rounded : (isMessage ? Icons.message_rounded : Icons.volunteer_activism), 
-                      color: themeColor
+                      // NEW: Red icon for cancellations
+                      isCancellation ? Icons.cancel_presentation_rounded : (isTag ? Icons.photo_library_rounded : (isMessage ? Icons.message_rounded : Icons.volunteer_activism)), 
+                      color: isCancellation ? Colors.red : themeColor
                     ),
                   ),
                   title: Text(
                     notif.title,
                     style: TextStyle(
                       fontWeight: notif.isRead ? FontWeight.w600 : FontWeight.bold,
-                      color: Colors.black87,
+                      color: isCancellation ? Colors.red.shade900 : Colors.black87, // Highlight title in red
                     ),
                   ),
                   subtitle: Padding(
@@ -351,6 +469,9 @@ class NotificationsScreen extends StatelessWidget {
                         ),
                         (Route<dynamic> route) => false, 
                       );
+                    } else if (isCancellation) {
+                      // NEW: Opens the cancellation bottom sheet
+                      _showDonorCancellationDetails(context, notif, themeColor);
                     } else {
                       _showRichDetailsPopup(context, notif, themeColor, isDonationOffer);
                     }
