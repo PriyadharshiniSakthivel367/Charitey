@@ -1,3 +1,4 @@
+//ngo_dashboard.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -12,7 +13,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import '../providers/auth_provider.dart';
 import '../models/post_model.dart';
 import 'create_post_screen.dart';
-import 'profile_screen.dart'; // Allows visiting profiles
+import 'profile_screen.dart';
 
 class NgoDashboard extends StatefulWidget {
   final String? targetPostId;
@@ -22,7 +23,8 @@ class NgoDashboard extends StatefulWidget {
   State<NgoDashboard> createState() => NgoDashboardState();
 }
 
-class NgoDashboardState extends State<NgoDashboard> with TickerProviderStateMixin {
+class NgoDashboardState extends State<NgoDashboard>
+    with TickerProviderStateMixin {
   final Color themeColor = const Color(0xFFB56F76);
   final ScrollController _scrollController = ScrollController();
   bool _hasScrolled = false;
@@ -46,7 +48,8 @@ class NgoDashboardState extends State<NgoDashboard> with TickerProviderStateMixi
 
   void _scrollToTarget(List<QueryDocumentSnapshot> posts) {
     if (widget.targetPostId != null && !_hasScrolled) {
-      int index = posts.indexWhere((doc) => doc.id == widget.targetPostId);
+      int index =
+          posts.indexWhere((doc) => doc.id == widget.targetPostId);
       if (index != -1) {
         _hasScrolled = true;
         double offset = index * 550.0;
@@ -65,15 +68,18 @@ class NgoDashboardState extends State<NgoDashboard> with TickerProviderStateMixi
 
   @override
   Widget build(BuildContext context) {
-    final user = Provider.of<AuthProvider>(context).currentUserModel;
+    final user =
+        Provider.of<AuthProvider>(context).currentUserModel;
     if (user == null) {
-      return Center(child: CircularProgressIndicator(color: themeColor));
+      return Center(
+          child: CircularProgressIndicator(color: themeColor));
     }
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
+          // ── Animated background ────────────────────────────
           AnimatedBuilder(
             animation: _bgController,
             builder: (context, child) {
@@ -81,12 +87,20 @@ class NgoDashboardState extends State<NgoDashboard> with TickerProviderStateMixi
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment(
-                      math.cos(_bgController.value * math.pi * 2),
-                      math.sin(_bgController.value * math.pi * 2)
+                      math.cos(
+                          _bgController.value * math.pi * 2),
+                      math.sin(
+                          _bgController.value * math.pi * 2),
                     ),
                     end: Alignment(
-                      math.cos(_bgController.value * math.pi * 2 + math.pi),
-                      math.sin(_bgController.value * math.pi * 2 + math.pi)
+                      math.cos(_bgController.value *
+                              math.pi *
+                              2 +
+                          math.pi),
+                      math.sin(_bgController.value *
+                              math.pi *
+                              2 +
+                          math.pi),
                     ),
                     colors: const [
                       Color(0xFFF2D9DB),
@@ -98,18 +112,24 @@ class NgoDashboardState extends State<NgoDashboard> with TickerProviderStateMixi
                   ),
                 ),
               );
-            }
+            },
           ),
+
+          // ── Activity feed ──────────────────────────────────
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('posts')
                 .orderBy('createdAt', descending: true)
                 .snapshots(),
             builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return Center(child: CircularProgressIndicator(color: themeColor));
+              if (snapshot.connectionState ==
+                  ConnectionState.waiting) {
+                return Center(
+                    child: CircularProgressIndicator(
+                        color: themeColor));
               }
-              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              if (!snapshot.hasData ||
+                  snapshot.data!.docs.isEmpty) {
                 return _buildEmptyState(user.role);
               }
 
@@ -119,19 +139,23 @@ class NgoDashboardState extends State<NgoDashboard> with TickerProviderStateMixi
               return ListView.builder(
                 controller: _scrollController,
                 physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.only(bottom: 100, top: 10),
+                padding: const EdgeInsets.only(
+                    bottom: 100, top: 10),
                 itemCount: posts.length,
                 itemBuilder: (context, index) {
                   var post = PostModel.fromMap(
-                    posts[index].data() as Map<String, dynamic>,
+                    posts[index].data()
+                        as Map<String, dynamic>,
                     posts[index].id,
                   );
 
-                  if (post.image.isEmpty || !post.image.startsWith('http')) {
+                  if (post.image.isEmpty ||
+                      !post.image.startsWith('http')) {
                     return const SizedBox.shrink();
                   }
 
-                  bool isTarget = post.postId == widget.targetPostId;
+                  bool isTarget =
+                      post.postId == widget.targetPostId;
 
                   return FutureBuilder<DocumentSnapshot>(
                     future: FirebaseFirestore.instance
@@ -140,21 +164,27 @@ class NgoDashboardState extends State<NgoDashboard> with TickerProviderStateMixi
                         .get(),
                     builder: (context, userSnapshot) {
                       String ngoName = "NGO";
-                      if (userSnapshot.hasData && userSnapshot.data!.exists) {
-                        ngoName = (userSnapshot.data!.data() as Map<String, dynamic>)['name'] ?? "NGO";
+                      if (userSnapshot.hasData &&
+                          userSnapshot.data!.exists) {
+                        ngoName = (userSnapshot.data!.data()
+                                as Map<String, dynamic>)[
+                            'name'] ??
+                            "NGO";
                       }
 
                       return AnimatedContainer(
-                        duration: const Duration(milliseconds: 800),
+                        duration:
+                            const Duration(milliseconds: 800),
                         decoration: isTarget
                             ? BoxDecoration(
                                 boxShadow: [
                                   BoxShadow(
-                                    color: themeColor.withValues(alpha: 0.3),
+                                    color: themeColor
+                                        .withValues(alpha: 0.3),
                                     blurRadius: 30,
                                     spreadRadius: 8,
-                                  )
-                                ]
+                                  ),
+                                ],
                               )
                             : const BoxDecoration(),
                         child: PostCardWidget(
@@ -172,6 +202,8 @@ class NgoDashboardState extends State<NgoDashboard> with TickerProviderStateMixi
           ),
         ],
       ),
+
+      // ── FAB (NGO only) ─────────────────────────────────────
       floatingActionButton: user.role == 'ngo'
           ? Padding(
               padding: const EdgeInsets.only(bottom: 90),
@@ -185,8 +217,8 @@ class NgoDashboardState extends State<NgoDashboard> with TickerProviderStateMixi
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      // FIXED ERROR: Added `context` here
-                      builder: (context) => const CreatePostScreen(),
+                      builder: (context) =>
+                          const CreatePostScreen(),
                     ),
                   );
                 },
@@ -198,7 +230,8 @@ class NgoDashboardState extends State<NgoDashboard> with TickerProviderStateMixi
               ),
             )
           : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButtonLocation:
+          FloatingActionButtonLocation.endFloat,
     );
   }
 
@@ -217,7 +250,7 @@ class NgoDashboardState extends State<NgoDashboard> with TickerProviderStateMixi
                   color: Colors.black.withValues(alpha: 0.03),
                   blurRadius: 15,
                   offset: const Offset(0, 5),
-                )
+                ),
               ],
             ),
             child: Icon(
@@ -253,7 +286,9 @@ class NgoDashboardState extends State<NgoDashboard> with TickerProviderStateMixi
   }
 }
 
+// ================================================================
 // POST CARD WIDGET
+// ================================================================
 class PostCardWidget extends StatefulWidget {
   final PostModel post;
   final String ngoName;
@@ -277,43 +312,52 @@ class _PostCardWidgetState extends State<PostCardWidget> {
   bool _isSharing = false;
 
   void _toggleLike() {
-    setState(() {
-      _isLiked = !_isLiked;
-    });
+    setState(() => _isLiked = !_isLiked);
     FirebaseFirestore.instance
         .collection('posts')
         .doc(widget.post.postId)
-        .update({'likes': FieldValue.increment(_isLiked ? 1 : -1)});
+        .update(
+            {'likes': FieldValue.increment(_isLiked ? 1 : -1)});
   }
 
   Future<void> _sharePost() async {
     if (kIsWeb) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Sharing is only supported on mobile devices (Android/iOS)."),
+          content: Text(
+            "Sharing is only supported on mobile devices (Android/iOS).",
+          ),
         ),
       );
       return;
     }
+
     setState(() => _isSharing = true);
     try {
       final url = Uri.parse(widget.post.image);
       final response = await http.get(url);
       final bytes = response.bodyBytes;
       final tempDir = await getTemporaryDirectory();
-      final path = '${tempDir.path}/shared_post_${widget.post.postId}.jpg';
+      final path =
+          '${tempDir.path}/shared_post_${widget.post.postId}.jpg';
       File(path).writeAsBytesSync(bytes);
 
-      String textToShare = "${widget.post.description}\n\n";
+      String textToShare =
+          "${widget.post.description}\n\n";
       if (widget.post.donorId.isNotEmpty) {
-        textToShare += "Tagging: ${widget.post.donorId}\n\n";
+        textToShare +=
+            "✨ ${widget.post.donorId}\n\n";
       }
-      textToShare += "Shared via Charitey App";
+      textToShare += "Shared via Charitey App❤️";
 
-      await Share.shareXFiles([XFile(path)], text: textToShare);
+      await Share.shareXFiles([XFile(path)],
+          text: textToShare);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error sharing post: $e")));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content:
+                    Text("Error sharing post: $e")));
       }
     } finally {
       if (mounted) setState(() => _isSharing = false);
@@ -325,23 +369,38 @@ class _PostCardWidgetState extends State<PostCardWidget> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Delete Post"),
-        content: const Text("Are you sure you want to delete this post? This cannot be undone."),
+        content: const Text(
+          "Are you sure you want to delete this post? This cannot be undone.",
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+            child: const Text("Cancel",
+                style: TextStyle(color: Colors.grey)),
           ),
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              await FirebaseFirestore.instance.collection('posts').doc(widget.post.postId).delete();
+              await FirebaseFirestore.instance
+                  .collection('posts')
+                  .doc(widget.post.postId)
+                  .delete();
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Post deleted"), backgroundColor: Colors.red),
+                ScaffoldMessenger.of(context)
+                    .showSnackBar(
+                  const SnackBar(
+                    content: Text("Post deleted"),
+                    backgroundColor: Colors.red,
+                  ),
                 );
               }
             },
-            child: const Text("Delete", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            child: const Text(
+              "Delete",
+              style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -349,14 +408,20 @@ class _PostCardWidgetState extends State<PostCardWidget> {
   }
 
   void _editPost() {
-    TextEditingController descController = TextEditingController(text: widget.post.description);
-    TextEditingController tagController = TextEditingController(text: widget.post.donorId);
+    TextEditingController descController =
+        TextEditingController(
+            text: widget.post.description);
+    TextEditingController tagController =
+        TextEditingController(text: widget.post.donorId);
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text("Edit Post", style: TextStyle(fontWeight: FontWeight.bold)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: const Text("Edit Post",
+            style:
+                TextStyle(fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -364,8 +429,11 @@ class _PostCardWidgetState extends State<PostCardWidget> {
               controller: tagController,
               decoration: InputDecoration(
                 labelText: "Tag Donor (Optional)",
-                prefixIcon: const Icon(Icons.person_add),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                prefixIcon:
+                    const Icon(Icons.person_add),
+                border: OutlineInputBorder(
+                    borderRadius:
+                        BorderRadius.circular(12)),
               ),
             ),
             const SizedBox(height: 16),
@@ -374,7 +442,9 @@ class _PostCardWidgetState extends State<PostCardWidget> {
               maxLines: 3,
               decoration: InputDecoration(
                 labelText: "Description",
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                    borderRadius:
+                        BorderRadius.circular(12)),
               ),
             ),
           ],
@@ -382,26 +452,38 @@ class _PostCardWidgetState extends State<PostCardWidget> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+            child: const Text("Cancel",
+                style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: widget.themeColor,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))
+              shape: RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.circular(10)),
             ),
             onPressed: () async {
               Navigator.pop(context);
-              await FirebaseFirestore.instance.collection('posts').doc(widget.post.postId).update({
-                'description': descController.text.trim(),
+              await FirebaseFirestore.instance
+                  .collection('posts')
+                  .doc(widget.post.postId)
+                  .update({
+                'description':
+                    descController.text.trim(),
                 'donorId': tagController.text.trim(),
               });
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Post updated!"), backgroundColor: Colors.green),
+                ScaffoldMessenger.of(context)
+                    .showSnackBar(
+                  const SnackBar(
+                    content: Text("Post updated!"),
+                    backgroundColor: Colors.green,
+                  ),
                 );
               }
             },
-            child: const Text("Save", style: TextStyle(color: Colors.white)),
+            child: const Text("Save",
+                style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -410,12 +492,14 @@ class _PostCardWidgetState extends State<PostCardWidget> {
 
   @override
   Widget build(BuildContext context) {
-    String formattedDate = DateFormat('MMM d, yyyy').format(widget.post.createdAt);
-    // FIXED ERROR: Uses exact property ngoId to check ownership
-    bool isMyPost = widget.post.ngoId == widget.currentUserId;
+    String formattedDate = DateFormat('MMM d, yyyy')
+        .format(widget.post.createdAt);
+    bool isMyPost =
+        widget.post.ngoId == widget.currentUserId;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      margin: const EdgeInsets.symmetric(
+          horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
@@ -432,56 +516,92 @@ class _PostCardWidgetState extends State<PostCardWidget> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ── Header: avatar + name + menu ──────────────
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
+                // Tapping the avatar/name navigates to
+                // the NGO's profile page
                 Expanded(
                   child: GestureDetector(
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => ProfileScreen(visitedUserId: widget.post.ngoId),
+                          builder: (context) =>
+                              ProfileScreen(
+                            visitedUserId:
+                                widget.post.ngoId,
+                          ),
                         ),
                       );
                     },
                     child: Row(
                       children: [
+                        // Show ngoProfileImage when available,
+                        // fallback to initial letter
                         CircleAvatar(
                           radius: 22,
-                          backgroundColor: widget.themeColor.withValues(alpha: 0.15),
-                          child: Text(
-                            widget.ngoName.isNotEmpty ? widget.ngoName[0].toUpperCase() : 'N',
-                            style: TextStyle(
-                              color: widget.themeColor,
-                              fontWeight: FontWeight.w900,
-                              fontSize: 18
-                            )
-                          )
+                          backgroundColor: widget
+                              .themeColor
+                              .withValues(alpha: 0.15),
+                          backgroundImage: (widget.post
+                                          .ngoProfileImage !=
+                                      null &&
+                                  widget.post
+                                      .ngoProfileImage!
+                                      .isNotEmpty)
+                              ? NetworkImage(widget.post
+                                  .ngoProfileImage!)
+                              : null,
+                          child: (widget.post
+                                          .ngoProfileImage ==
+                                      null ||
+                                  widget.post
+                                      .ngoProfileImage!
+                                      .isEmpty)
+                              ? Text(
+                                  widget.ngoName.isNotEmpty
+                                      ? widget.ngoName[0]
+                                          .toUpperCase()
+                                      : 'N',
+                                  style: TextStyle(
+                                    color:
+                                        widget.themeColor,
+                                    fontWeight:
+                                        FontWeight.w900,
+                                    fontSize: 18,
+                                  ),
+                                )
+                              : null,
                         ),
                         const SizedBox(width: 14),
                         Expanded(
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
                             children: [
                               Text(
                                 widget.ngoName,
                                 style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight:
+                                      FontWeight.w800,
                                   fontSize: 15.5,
                                   letterSpacing: 0.2,
-                                  color: Colors.black87
-                                )
+                                  color: Colors.black87,
+                                ),
                               ),
                               const SizedBox(height: 3),
                               Text(
                                 formattedDate,
                                 style: TextStyle(
-                                  color: Colors.grey.shade500,
+                                  color: Colors
+                                      .grey.shade500,
                                   fontSize: 12.5,
-                                  fontWeight: FontWeight.w600
-                                )
+                                  fontWeight:
+                                      FontWeight.w600,
+                                ),
                               ),
                             ],
                           ),
@@ -490,75 +610,112 @@ class _PostCardWidgetState extends State<PostCardWidget> {
                     ),
                   ),
                 ),
+
                 if (isMyPost)
                   PopupMenuButton<String>(
-                    icon: Icon(Icons.more_horiz, color: Colors.grey.shade600),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    icon: Icon(Icons.more_horiz,
+                        color: Colors.grey.shade600),
+                    shape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(16)),
                     onSelected: (value) {
                       if (value == 'edit') _editPost();
-                      if (value == 'delete') _deletePost();
+                      if (value == 'delete')
+                        _deletePost();
                     },
-                    itemBuilder: (BuildContext context) => [
+                    itemBuilder: (BuildContext context) =>
+                        [
                       const PopupMenuItem(
                         value: 'edit',
                         child: Row(
                           children: [
-                            Icon(Icons.edit_rounded, size: 20, color: Colors.black87),
+                            Icon(Icons.edit_rounded,
+                                size: 20,
+                                color: Colors.black87),
                             SizedBox(width: 12),
-                            Text('Edit', style: TextStyle(fontWeight: FontWeight.w600)),
+                            Text('Edit',
+                                style: TextStyle(
+                                    fontWeight:
+                                        FontWeight.w600)),
                           ],
-                        )
+                        ),
                       ),
                       const PopupMenuItem(
                         value: 'delete',
                         child: Row(
                           children: [
-                            Icon(Icons.delete_rounded, size: 20, color: Colors.redAccent),
+                            Icon(Icons.delete_rounded,
+                                size: 20,
+                                color: Colors.redAccent),
                             SizedBox(width: 12),
-                            Text('Delete', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600)),
+                            Text('Delete',
+                                style: TextStyle(
+                                    color:
+                                        Colors.redAccent,
+                                    fontWeight:
+                                        FontWeight.w600)),
                           ],
-                        )
+                        ),
                       ),
                     ],
                   ),
               ],
             ),
           ),
+
+          // ── Post image ────────────────────────────────
           Container(
             width: double.infinity,
-            constraints: const BoxConstraints(maxHeight: 380),
+            constraints:
+                const BoxConstraints(maxHeight: 380),
             color: Colors.grey.shade50,
             child: Image.network(
               widget.post.image,
               fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => const Padding(
+              errorBuilder:
+                  (context, error, stackTrace) =>
+                      const Padding(
                 padding: EdgeInsets.all(40.0),
-                child: Icon(Icons.broken_image_outlined, size: 50, color: Colors.grey),
+                child: Icon(
+                    Icons.broken_image_outlined,
+                    size: 50,
+                    color: Colors.grey),
               ),
             ),
           ),
+
+          // ── Like + Share row ──────────────────────────
           Padding(
-            padding: const EdgeInsets.only(left: 16, right: 16, top: 14, bottom: 8),
+            padding: const EdgeInsets.only(
+                left: 16, right: 16, top: 14, bottom: 8),
             child: Row(
               children: [
                 GestureDetector(
                   onTap: _toggleLike,
                   child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
-                    transitionBuilder: (Widget child, Animation<double> animation) {
-                      return ScaleTransition(scale: animation, child: child);
+                    duration:
+                        const Duration(milliseconds: 300),
+                    transitionBuilder: (Widget child,
+                        Animation<double> animation) {
+                      return ScaleTransition(
+                          scale: animation, child: child);
                     },
                     child: Icon(
-                      _isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                      _isLiked
+                          ? Icons.favorite_rounded
+                          : Icons.favorite_border_rounded,
                       key: ValueKey<bool>(_isLiked),
                       size: 30,
-                      color: _isLiked ? const Color(0xFFE63946) : Colors.grey.shade800,
+                      color: _isLiked
+                          ? const Color(0xFFE63946)
+                          : Colors.grey.shade800,
                     ),
                   ),
                 ),
                 const SizedBox(width: 18),
                 GestureDetector(
-                  onTap: _isSharing ? null : _sharePost,
+                  onTap:
+                      _isSharing ? null : _sharePost,
                   child: _isSharing
                       ? SizedBox(
                           height: 24,
@@ -577,27 +734,37 @@ class _PostCardWidgetState extends State<PostCardWidget> {
               ],
             ),
           ),
+
+          // ── Likes count + caption ─────────────────────
           Padding(
-            padding: const EdgeInsets.only(left: 16, right: 16, bottom: 20),
+            padding: const EdgeInsets.only(
+                left: 16, right: 16, bottom: 20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   "${widget.post.likes} likes",
-                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14.5),
                 ),
                 const SizedBox(height: 8),
                 RichText(
                   text: TextSpan(
-                    style: const TextStyle(color: Colors.black87, fontSize: 14.5, height: 1.4),
+                    style: const TextStyle(
+                        color: Colors.black87,
+                        fontSize: 14.5,
+                        height: 1.4),
                     children: [
                       TextSpan(
                         text: "${widget.ngoName} ",
-                        style: const TextStyle(fontWeight: FontWeight.w800),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w800),
                       ),
                       if (widget.post.donorId.isNotEmpty)
                         TextSpan(
-                          text: "${widget.post.donorId} ",
+                          text:
+                              "${widget.post.donorId} ",
                           style: TextStyle(
                             color: widget.themeColor,
                             fontWeight: FontWeight.w800,
@@ -605,7 +772,8 @@ class _PostCardWidgetState extends State<PostCardWidget> {
                         ),
                       TextSpan(
                         text: widget.post.description,
-                        style: const TextStyle(fontWeight: FontWeight.w400),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w400),
                       ),
                     ],
                   ),

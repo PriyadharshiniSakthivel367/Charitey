@@ -1,3 +1,4 @@
+//post_model.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PostModel {
@@ -5,6 +6,7 @@ class PostModel {
   final String ngoId;
   final String donorId; 
   final String donorUid; 
+  final String? ngoProfileImage; // ADD THIS
   final String image;
   final String description;
   final int likes;
@@ -15,6 +17,7 @@ class PostModel {
     required this.ngoId,
     required this.donorId,
     this.donorUid = '', 
+    this.ngoProfileImage, // ADD THIS
     required this.image,
     required this.description,
     this.likes = 0,
@@ -27,6 +30,7 @@ class PostModel {
       'ngoId': ngoId,
       'donorId': donorId,
       'donorUid': donorUid,
+      'ngoProfileImage': ngoProfileImage, // ADD THIS
       'image': image,
       'description': description,
       'likes': likes,
@@ -39,7 +43,7 @@ class PostModel {
       postId: documentId,
       ngoId: map['ngoId'] ?? '',
       donorId: map['donorId'] ?? '',
-      donorUid: map['donorUid'] ?? '',
+      ngoProfileImage: map['ngoProfileImage'] as String?, // ADD THIS
       image: map['image'] ?? '',
       description: map['description'] ?? '',
       likes: map['likes'] ?? 0,

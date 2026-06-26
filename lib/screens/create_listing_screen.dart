@@ -1,3 +1,4 @@
+//create_listing_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -158,12 +159,12 @@ class CreateListingScreenState extends State<CreateListingScreen> {
       );
       return;
     }
-    if (_isVolunteerAvailable == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select if a Volunteer is Available')),
-      );
-      return;
-    }
+   if (_isVolunteerAvailable != true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('You must confirm volunteer availability to publish this request.')),
+        );
+        return;
+      }
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final user = authProvider.currentUserModel;
@@ -210,6 +211,7 @@ DateTime selectedDateTime = DateTime(
         ngoId: user.uid,
         ngoName: user.name,
         ngoLocation: user.location,
+        ngoProfileImage: user.profileImage, // Image
         type: _listingType,
         imageUrl: null, // Image feature removed completely
         foodType: _listingType == 'food' ? _foodTypeController.text.trim() : null,
@@ -685,81 +687,92 @@ DateTime selectedDateTime = DateTime(
                                       
                                       const SizedBox(height: 24),
                                       
-                                      const Text(
-                                        "Do you have a volunteer for pickup?",
-                                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.black87),
-                                      ),
-                                      const SizedBox(height: 16),
+                                      // 1. Enhanced Header
                                       Row(
                                         children: [
-                                          Expanded(
-                                            child: GestureDetector(
-                                              onTap: () => setState(() => _isVolunteerAvailable = true),
-                                              child: AnimatedContainer(
-                                                duration: const Duration(milliseconds: 200),
-                                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                                decoration: BoxDecoration(
-                                                  color: _isVolunteerAvailable == true ? themeColor : Colors.grey.shade50,
-                                                  borderRadius: BorderRadius.circular(16),
-                                                  boxShadow: _isVolunteerAvailable == true
-                                                      ? [
-                                                          BoxShadow(
-                                                            color: themeColor.withOpacity(0.3),
-                                                            blurRadius: 10,
-                                                            offset: const Offset(0, 4),
-                                                          )
-                                                        ]
-                                                      : [],
-                                                ),
-                                                child: Center(
-                                                  child: Text(
-                                                    "Yes, I do",
-                                                    style: TextStyle(
-                                                      fontSize: 15,
-                                                      fontWeight: FontWeight.w800,
-                                                      color: _isVolunteerAvailable == true ? Colors.white : Colors.grey.shade600,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 16),
-                                          Expanded(
-                                            child: GestureDetector(
-                                              onTap: () => setState(() => _isVolunteerAvailable = false),
-                                              child: AnimatedContainer(
-                                                duration: const Duration(milliseconds: 200),
-                                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                                decoration: BoxDecoration(
-                                                  color: _isVolunteerAvailable == false ? themeColor : Colors.grey.shade50,
-                                                  borderRadius: BorderRadius.circular(16),
-                                                  boxShadow: _isVolunteerAvailable == false
-                                                      ? [
-                                                          BoxShadow(
-                                                            color: themeColor.withOpacity(0.3),
-                                                            blurRadius: 10,
-                                                            offset: const Offset(0, 4),
-                                                          )
-                                                        ]
-                                                      : [],
-                                                ),
-                                                child: Center(
-                                                  child: Text(
-                                                    "No",
-                                                    style: TextStyle(
-                                                      fontSize: 15,
-                                                      fontWeight: FontWeight.w800,
-                                                      color: _isVolunteerAvailable == false ? Colors.white : Colors.grey.shade600,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
+                                          Icon(Icons.info_outline_rounded, size: 18, color: themeColor),
+                                          const SizedBox(width: 8),
+                                          const Text(
+                                            "Volunteer Requirement",
+                                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.black87),
                                           ),
                                         ],
                                       ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        "To ensure a smooth experience, NGOs must arrange their own volunteers to collect donations directly from the donor's location.",
+                                        style: TextStyle(fontSize: 13, color: Colors.grey.shade600, height: 1.5),
+                                      ),
+                                      const SizedBox(height: 16),
                                       
+                                      // 2. Premium Toggle Card
+                                      GestureDetector(
+                                        // FIX: Properly toggles between true and false!
+                                        onTap: () => setState(() => _isVolunteerAvailable = !(_isVolunteerAvailable ?? false)),
+                                        child: AnimatedContainer(
+                                          duration: const Duration(milliseconds: 250),
+                                          curve: Curves.easeInOut,
+                                          width: double.infinity,
+                                          padding: const EdgeInsets.all(16),
+                                          decoration: BoxDecoration(
+                                            color: _isVolunteerAvailable == true ? themeColor.withValues(alpha: 0.05) : Colors.white,
+                                            borderRadius: BorderRadius.circular(16),
+                                            border: Border.all(
+                                              color: _isVolunteerAvailable == true ? themeColor : Colors.grey.shade300,
+                                              width: 1.5,
+                                            ),
+                                            boxShadow: _isVolunteerAvailable == true
+                                                ? [BoxShadow(color: themeColor.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 4))]
+                                                : [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 4, offset: const Offset(0, 2))],
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              // Custom Animated Checkbox
+                                              AnimatedContainer(
+                                                duration: const Duration(milliseconds: 250),
+                                                height: 26,
+                                                width: 26,
+                                                decoration: BoxDecoration(
+                                                  color: _isVolunteerAvailable == true ? themeColor : Colors.transparent,
+                                                  shape: BoxShape.circle,
+                                                  border: Border.all(
+                                                    color: _isVolunteerAvailable == true ? themeColor : Colors.grey.shade400,
+                                                    width: 2,
+                                                  ),
+                                                ),
+                                                child: _isVolunteerAvailable == true
+                                                    ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
+                                                    : null,
+                                              ),
+                                              const SizedBox(width: 16),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      "I confirm & agree",
+                                                      style: TextStyle(
+                                                        fontSize: 15,
+                                                        fontWeight: FontWeight.w800,
+                                                        color: _isVolunteerAvailable == true ? themeColor : Colors.black87,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 2),
+                                                    Text(
+                                                      "We have a volunteer ready for pickup",
+                                                      style: TextStyle(
+                                                        fontSize: 12,
+                                                        fontWeight: FontWeight.w500,
+                                                        color: _isVolunteerAvailable == true ? themeColor.withValues(alpha: 0.8) : Colors.grey.shade500,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
                                       const SizedBox(height: 45),
                                       
                                       SizedBox(

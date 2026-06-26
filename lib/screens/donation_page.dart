@@ -1,3 +1,4 @@
+//donation_page.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -7,6 +8,10 @@ import '../models/ngo_listing_model.dart';
 import '../models/donation_model.dart';
 import '../models/notification_model.dart';
 import '../providers/auth_provider.dart';
+import 'dart:async';
+import 'dart:ui' as ui;
+import 'dart:typed_data';
+import 'package:flutter/services.dart';
 
 class DonationPage extends StatefulWidget {
   final NgoListingModel listing;
@@ -36,6 +41,10 @@ class _DonationPageState extends State<DonationPage> {
   @override
   void initState() {
     super.initState();
+    // Load bird image and rebuild slider when ready
+    BirdImageCache().load().then((_) {
+      if (mounted) setState(() {});
+    });
     totalNeeded = widget.listing.quantity ?? 0;
     alreadyFulfilled = widget.listing.fulfilledQuantity ?? 0;
     remainingNeeded = totalNeeded - alreadyFulfilled;
@@ -522,33 +531,36 @@ class _DonationPageState extends State<DonationPage> {
                             ),
                             
                             const SizedBox(height: 8),
-
-                            // The Interactive Slider
-                            SliderTheme(
-                              data: SliderTheme.of(context).copyWith(
-                                activeTrackColor: themeColor,
-                                inactiveTrackColor: themeColor.withOpacity(0.2),
-                                thumbColor: themeColor,
-                                overlayColor: themeColor.withOpacity(0.1),
-                                trackHeight: 8.0,
-                                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 12.0),
-                              ),
-                              child: Slider(
-                                value: _sliderValue,
-                                min: 0,
-                                max: remainingNeeded > 0 ? remainingNeeded.toDouble() : 1.0, 
-                                divisions: remainingNeeded > 0 ? remainingNeeded : 1, 
-                                onChanged: remainingNeeded > 0 ? (value) {
-                                  setState(() {
-                                    _sliderValue = value;
-                                    _donationQuantityController.value = TextEditingValue(
-                                      text: value.toInt().toString(),
-                                      selection: TextSelection.collapsed(offset: value.toInt().toString().length),
-                                    );
-                                  });
-                                } : null,
-                              ),
-                            ),
+                    // The Interactive Slider with Bird Thumb
+            SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                activeTrackColor: themeColor,
+                inactiveTrackColor: themeColor.withOpacity(0.2),
+                thumbColor: themeColor,
+                overlayColor: themeColor.withOpacity(0.1),
+                trackHeight: 8.0,
+                thumbShape: BirdSliderThumb(
+                  thumbRadius: 20.0,
+                  thumbColor: themeColor,
+                ),
+              ),
+              child: Slider(
+                value: _sliderValue,
+                min: 0,
+                max: remainingNeeded > 0 ? remainingNeeded.toDouble() : 1.0,
+                divisions: remainingNeeded > 0 ? remainingNeeded : 1,
+                onChanged: remainingNeeded > 0 ? (value) {
+                  setState(() {
+                    _sliderValue = value;
+                    _donationQuantityController.value = TextEditingValue(
+                      text: value.toInt().toString(),
+                      selection: TextSelection.collapsed(
+                          offset: value.toInt().toString().length),
+                    );
+                  });
+                } : null,
+              ),
+            ),
                             
                             const SizedBox(height: 24),
                           ],
@@ -712,5 +724,93 @@ class _DonationPageState extends State<DonationPage> {
         ],
       ),
     );
+  }
+}
+
+// ============================================================
+// BIRD IMAGE LOADER — loads once, notifies listeners when ready
+// ============================================================
+class BirdImageCache extends ChangeNotifier {
+  static final BirdImageCache _instance = BirdImageCache._internal();
+  factory BirdImageCache() => _instance;
+  BirdImageCache._internal();
+
+  ui.Image? image;
+  bool _isLoading = false;
+
+  Future<void> load() async {
+    if (image != null || _isLoading) return;
+    _isLoading = true;
+    try {
+      final ByteData data =
+          await rootBundle.load('assets/charitey_bird.png');
+      final Uint8List bytes = data.buffer.asUint8List();
+      final completer = Completer<ui.Image>();
+      ui.decodeImageFromList(bytes, completer.complete);
+      image = await completer.future;
+      notifyListeners(); // ← triggers rebuild when image is ready
+    } catch (e) {
+      debugPrint('Bird image load error: $e');
+    }
+    _isLoading = false;
+  }
+}
+
+// ============================================================
+// BIRD THUMB SHAPE
+// ============================================================
+class BirdSliderThumb extends SliderComponentShape {
+  final double thumbRadius;
+  final Color thumbColor;
+
+  const BirdSliderThumb({
+    required this.thumbRadius,
+    required this.thumbColor,
+  });
+
+  @override
+  Size getPreferredSize(bool isEnabled, bool isDiscrete) {
+    return Size.fromRadius(thumbRadius);
+  }
+
+  @override
+  void paint(
+    PaintingContext context,
+    Offset center, {
+    required Animation<double> activationAnimation,
+    required Animation<double> enableAnimation,
+    required bool isDiscrete,
+    required TextPainter labelPainter,
+    required RenderBox parentBox,
+    required SliderThemeData sliderTheme,
+    required TextDirection textDirection,
+    required double value,
+    required double textScaleFactor,
+    required Size sizeWithOverflow,
+  }) {
+    final Canvas canvas = context.canvas;
+    final double size = thumbRadius * 5;
+    final ui.Image? img = BirdImageCache().image;
+
+    if (img != null) {
+      final Paint paint = Paint()
+        ..colorFilter = ColorFilter.mode(thumbColor, BlendMode.srcIn);
+
+      final Rect srcRect = Rect.fromLTWH(
+        0, 0,
+        img.width.toDouble(),
+        img.height.toDouble(),
+      );
+      final Rect dstRect = Rect.fromCenter(
+        center: center,
+        width: size,
+        height: size,
+      );
+      canvas.drawImageRect(img, srcRect, dstRect, paint);
+    } else {
+      // Fallback circle only on very first frame before image loads
+      final Paint fallback = Paint()..color = thumbColor;
+      canvas.drawCircle(center, thumbRadius, fallback);
+    }
   }
 }

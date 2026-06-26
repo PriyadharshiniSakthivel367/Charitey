@@ -1,14 +1,15 @@
-//profile_setup_screen.dart :
+//profile_setup_screen.dart
+
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; 
 import '../providers/auth_provider.dart';
 import '../main.dart'; 
-import 'package:image_picker/image_picker.dart';
-import '../services/storage_service.dart';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
+import '../services/storage_service.dart';
+import 'package:image_picker/image_picker.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
   final String role; 
@@ -479,13 +480,13 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen>
     }
 
     await authProvider.updateProfile(
-      name: nameController.text.trim().isNotEmpty ? nameController.text.trim() : null,
-      username: finalUsername.isNotEmpty ? finalUsername : null,
-      phone: phoneController.text.trim().isNotEmpty ? phoneController.text.trim() : null,
-      location: (widget.role == "ngo" || widget.role == "travel_agency") && addressController.text.trim().isNotEmpty ? addressController.text.trim() : null,
-      license: licenseController.text.trim().isNotEmpty ? licenseController.text.trim() : null,
-      profileImage: profileImageUrl,
-    );
+  name: nameController.text.trim().isNotEmpty ? nameController.text.trim() : null,
+  username: finalUsername.isNotEmpty ? finalUsername : null, 
+  phone: phoneController.text.trim().isNotEmpty ? phoneController.text.trim() : null,
+  location: (widget.role == "ngo" || widget.role == "travel_agency") && addressController.text.trim().isNotEmpty ? addressController.text.trim() : null,
+  license: licenseController.text.trim().isNotEmpty ? licenseController.text.trim() : null,
+  profileImage: profileImageUrl,  // ADD THIS LINE
+);
 
     if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(

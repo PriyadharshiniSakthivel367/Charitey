@@ -1,3 +1,4 @@
+//models/chat_preview_model.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ChatPreviewModel {
@@ -7,6 +8,7 @@ class ChatPreviewModel {
   final String lastMessage;
   final DateTime lastMessageTime;
   final bool hasUnread;
+  final String? participantProfileImage; // ADD
 
   ChatPreviewModel({
     required this.chatRoomId,
@@ -15,6 +17,7 @@ class ChatPreviewModel {
     required this.lastMessage,
     required this.lastMessageTime,
     this.hasUnread = false,
+    this.participantProfileImage, // ADD
   });
 
   factory ChatPreviewModel.fromMap(Map<String, dynamic> map, String id) {
@@ -25,6 +28,7 @@ class ChatPreviewModel {
       lastMessage: map['lastMessage'] ?? '',
       lastMessageTime: (map['lastMessageTime'] as Timestamp?)?.toDate() ?? DateTime.now(),
       hasUnread: map['hasUnread'] ?? false,
+      participantProfileImage: map['participantProfileImage'] as String?, // ADD
     );
   }
 }
