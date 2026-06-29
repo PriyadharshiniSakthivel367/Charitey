@@ -1,12 +1,11 @@
-//post_model.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PostModel {
   final String postId;
-  final String ngoId;
-  final String donorId; 
-  final String donorUid; 
-  final String? ngoProfileImage; // ADD THIS
+  final String ngoId; // FIXED TYPO
+  final String donorId;
+  final String donorUid;
+  final String? ngoProfileImage;
   final String image;
   final String description;
   final int likes;
@@ -16,8 +15,8 @@ class PostModel {
     required this.postId,
     required this.ngoId,
     required this.donorId,
-    this.donorUid = '', 
-    this.ngoProfileImage, // ADD THIS
+    this.donorUid = '',
+    this.ngoProfileImage,
     required this.image,
     required this.description,
     this.likes = 0,
@@ -30,7 +29,7 @@ class PostModel {
       'ngoId': ngoId,
       'donorId': donorId,
       'donorUid': donorUid,
-      'ngoProfileImage': ngoProfileImage, // ADD THIS
+      'ngoProfileImage': ngoProfileImage,
       'image': image,
       'description': description,
       'likes': likes,
@@ -41,9 +40,10 @@ class PostModel {
   factory PostModel.fromMap(Map<String, dynamic> map, String documentId) {
     return PostModel(
       postId: documentId,
-      ngoId: map['ngoId'] ?? '',
+      ngoId: map['ngoId'] ?? map['ngold'] ?? '', // Handles old typo data safely
       donorId: map['donorId'] ?? '',
-      ngoProfileImage: map['ngoProfileImage'] as String?, // ADD THIS
+      donorUid: map['donorUid'] ?? '',
+      ngoProfileImage: map['ngoProfileImage'] as String?,
       image: map['image'] ?? '',
       description: map['description'] ?? '',
       likes: map['likes'] ?? 0,

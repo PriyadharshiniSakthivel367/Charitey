@@ -1128,10 +1128,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                                     .trim()
                                     .toLowerCase() ??
                                 'pending';
-                            String ngoId =
-                                donation['ngoId'] ??
-                                    donation['ngold'] ??
-                                    '';
+                            String ngoId = donation['ngoId'] ?? '';
                             String listingId =
                                 donation['listingId'] ?? '';
                             String targetDocId =

@@ -3,14 +3,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class DonationModel {
   final String donationId;
   final String listingId;
-  final String ngoId;
+  final String ngoId; // FIXED TYPO
   final String donorId;
   final String donorName;
   final String donorPhone;
   final String donorLocation;
-  final String status; // pending / claimed / completed
+  final String status;
   final DateTime createdAt;
   final int donatedQuantity;
+  // NEW: Mapped from Firebase
+  final String? cancelReason;
+  final DateTime? cancelledAt;
 
   DonationModel({
     required this.donationId,
@@ -23,6 +26,8 @@ class DonationModel {
     required this.status,
     required this.createdAt,
     required this.donatedQuantity,
+    this.cancelReason,
+    this.cancelledAt,
   });
 
   Map<String, dynamic> toMap() {
@@ -37,6 +42,8 @@ class DonationModel {
       'status': status,
       'createdAt': Timestamp.fromDate(createdAt),
       'donatedQuantity': donatedQuantity,
+      'cancelReason': cancelReason,
+      'cancelledAt': cancelledAt != null ? Timestamp.fromDate(cancelledAt!) : null,
     };
   }
 
@@ -44,7 +51,7 @@ class DonationModel {
     return DonationModel(
       donationId: documentId,
       listingId: map['listingId'] ?? '',
-      ngoId: map['ngoId'] ?? '',
+      ngoId: map['ngoId'] ?? map['ngold'] ?? '', // Handles old typo data safely
       donorId: map['donorId'] ?? '',
       donorName: map['donorName'] ?? '',
       donorPhone: map['donorPhone'] ?? '',
@@ -52,6 +59,8 @@ class DonationModel {
       status: map['status'] ?? 'pending',
       donatedQuantity: map['donatedQuantity'] ?? 0,
       createdAt: (map['createdAt'] as Timestamp).toDate(),
+      cancelReason: map['cancelReason'],
+      cancelledAt: (map['cancelledAt'] as Timestamp?)?.toDate(),
     );
   }
 }
