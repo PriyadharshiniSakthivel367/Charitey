@@ -1,9 +1,15 @@
+//profile_setup_screen.dart
+
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; 
 import '../providers/auth_provider.dart';
 import '../main.dart'; 
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
+import '../services/storage_service.dart';
+import 'package:image_picker/image_picker.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
   final String role; 
@@ -26,6 +32,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen>
   final TextEditingController licenseController = TextEditingController();
 
   File? _selectedImage;
+  Uint8List? _selectedImageBytes; // ADD THIS
   bool _isCheckingUsername = false; 
   
   final Color themeColor = const Color(0xFFB56F76);
@@ -254,7 +261,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen>
   }
 
   String _getButtonText() {
-    if (_currentPage == 0 && _selectedImage == null) return "SKIP PHOTO";
+    if (_currentPage == 0 && _selectedImage == null && _selectedImageBytes == null) return "SKIP PHOTO";
     if (_currentPage == _totalPages - 1) return "COMPLETE SETUP";
     return "CONTINUE";
   }
@@ -311,28 +318,61 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen>
     );
   }
 
+  Future<void> _pickProfileImage() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      if (kIsWeb) {
+        final bytes = await picked.readAsBytes();
+        setState(() {
+          _selectedImageBytes = bytes;
+          _selectedImage = null;
+        });
+      } else {
+        setState(() {
+          _selectedImage = File(picked.path);
+          _selectedImageBytes = null;
+        });
+      }
+    }
+  }
+
   Widget _buildImageStep() {
     return _buildStepContainer(
       title: "Add a Photo",
       subtitle: "Help your community recognize you easily",
       child: Center(
         child: GestureDetector(
-          onTap: () {},
+          onTap: _pickProfileImage,
           child: Stack(
             alignment: Alignment.bottomRight,
             children: [
               Container(
-                width: 140, 
-                height: 140, 
+                width: 140,
+                height: 140,
                 decoration: BoxDecoration(
                   color: Colors.white,
                   shape: BoxShape.circle,
                   border: Border.all(color: themeColor.withValues(alpha: 0.2), width: 4),
                   boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 10))],
                 ),
-                child: _selectedImage == null
-                    ? Icon(Icons.person_rounded, size: 70, color: Colors.grey.shade300)
-                    : const CircleAvatar(radius: 70, backgroundImage: AssetImage('assets/images/user_placeholder.png')),
+                child: ClipOval(
+                  child: (_selectedImage == null && _selectedImageBytes == null)
+                      ? Icon(Icons.person_rounded, size: 70, color: Colors.grey.shade300)
+                      : kIsWeb
+                          ? Image.memory(
+                              _selectedImageBytes!,
+                              width: 140,
+                              height: 140,
+                              fit: BoxFit.cover,
+                            )
+                          : Image.file(
+                              _selectedImage!,
+                              width: 140,
+                              height: 140,
+                              fit: BoxFit.cover,
+                            ),
+                ),
               ),
               Container(
                 padding: const EdgeInsets.all(12),
@@ -433,13 +473,20 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen>
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     String finalUsername = usernameController.text.trim().toLowerCase();
 
+    // Upload profile image to Cloudinary if one was selected
+    String? profileImageUrl;
+    if (_selectedImage != null || _selectedImageBytes != null) {
+      profileImageUrl = await StorageService().uploadImage(_selectedImage, _selectedImageBytes);
+    }
+
     await authProvider.updateProfile(
-      name: nameController.text.trim().isNotEmpty ? nameController.text.trim() : null,
-      username: finalUsername.isNotEmpty ? finalUsername : null, 
-      phone: phoneController.text.trim().isNotEmpty ? phoneController.text.trim() : null,
-      location: (widget.role == "ngo" || widget.role == "travel_agency") && addressController.text.trim().isNotEmpty ? addressController.text.trim() : null,
-      license: licenseController.text.trim().isNotEmpty ? licenseController.text.trim() : null,
-    );
+  name: nameController.text.trim().isNotEmpty ? nameController.text.trim() : null,
+  username: finalUsername.isNotEmpty ? finalUsername : null, 
+  phone: phoneController.text.trim().isNotEmpty ? phoneController.text.trim() : null,
+  location: (widget.role == "ngo" || widget.role == "travel_agency") && addressController.text.trim().isNotEmpty ? addressController.text.trim() : null,
+  license: licenseController.text.trim().isNotEmpty ? licenseController.text.trim() : null,
+  profileImage: profileImageUrl,  // ADD THIS LINE
+);
 
     if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(

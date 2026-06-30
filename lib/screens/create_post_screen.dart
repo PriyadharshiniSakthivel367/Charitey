@@ -6,28 +6,30 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../providers/auth_provider.dart';
 import '../services/storage_service.dart';
-import '../services/firestore_service.dart'; 
+import '../services/firestore_service.dart';
 import '../models/post_model.dart';
-import '../models/notification_model.dart'; 
+import '../models/notification_model.dart';
 import '../widgets/custom_button.dart';
 
 class CreatePostScreen extends StatefulWidget {
   const CreatePostScreen({Key? key}) : super(key: key);
 
   @override
-  State<CreatePostScreen> createState() => _CreatePostScreenState();
+  State<CreatePostScreen> createState() =>
+      _CreatePostScreenState();
 }
 
 class _CreatePostScreenState extends State<CreatePostScreen> {
-  final TextEditingController _descriptionController = TextEditingController();
-  
+  final TextEditingController _descriptionController =
+      TextEditingController();
+
   String _selectedDonorName = '';
-  String _selectedDonorUid = ''; 
+  String _selectedDonorUid = '';
 
   File? _selectedImage;
   Uint8List? _webImage;
   final ImagePicker _picker = ImagePicker();
-  
+
   bool _isLoading = false;
   final Color themeColor = const Color(0xFFB56F76);
 
@@ -38,7 +40,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   }
 
   Future<void> _pickImage() async {
-    final picked = await _picker.pickImage(source: ImageSource.gallery);
+    final picked =
+        await _picker.pickImage(source: ImageSource.gallery);
     if (picked != null) {
       if (kIsWeb) {
         _webImage = await picked.readAsBytes();
@@ -50,16 +53,19 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   }
 
   Future<void> _uploadPost() async {
-    if ((_selectedImage == null && _webImage == null) || _descriptionController.text.trim().isEmpty) {
+    if ((_selectedImage == null && _webImage == null) ||
+        _descriptionController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select an image and write a description.')),
+        const SnackBar(
+            content: Text(
+                'Please select an image and write a description.')),
       );
       return;
     }
 
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final authProvider =
+        Provider.of<AuthProvider>(context, listen: false);
     final user = authProvider.currentUserModel;
-
     if (user == null) return;
 
     setState(() => _isLoading = true);
@@ -68,45 +74,63 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       final storageService = StorageService();
       String? imageUrl;
 
-      try {
-        imageUrl = await storageService.uploadImage(_selectedImage, _webImage).timeout(const Duration(seconds: 5));
-      } catch (e) {
-        print("Firebase Storage blocked the upload: $e");
-      }
+      imageUrl = await storageService.uploadImage(
+          _selectedImage, _webImage);
 
       if (imageUrl == null || imageUrl.isEmpty) {
-        imageUrl = 'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?q=80&w=1000&auto=format&fit=crop';
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Using a test image so you can continue!"), backgroundColor: Colors.orange));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  "Image upload failed. Please check your connection and try again."),
+              backgroundColor: Colors.red,
+            ),
+          );
         }
+        setState(() => _isLoading = false);
+        return;
       }
 
-      String postId = FirebaseFirestore.instance.collection('posts').doc().id;
-      
+      String postId = FirebaseFirestore.instance
+          .collection('posts')
+          .doc()
+          .id;
+
       PostModel newPost = PostModel(
         postId: postId,
         ngoId: user.uid,
-        donorId: _selectedDonorName, 
-        donorUid: _selectedDonorUid, 
+        // Save the NGO's profile image so PostCardWidget
+        // can render it directly without a Firestore fetch
+        ngoProfileImage: user.profileImage,
+        donorId: _selectedDonorName,
+        donorUid: _selectedDonorUid,
         image: imageUrl,
         description: _descriptionController.text.trim(),
         likes: 0,
         createdAt: DateTime.now(),
       );
 
-      await FirebaseFirestore.instance.collection('posts').doc(postId).set(newPost.toMap());
+      await FirebaseFirestore.instance
+          .collection('posts')
+          .doc(postId)
+          .set(newPost.toMap());
 
+      // Notify tagged donor
       if (_selectedDonorUid.isNotEmpty) {
-        String notifId = FirebaseFirestore.instance.collection('notifications').doc().id;
+        String notifId = FirebaseFirestore.instance
+            .collection('notifications')
+            .doc()
+            .id;
         NotificationModel notification = NotificationModel(
           id: notifId,
           receiverId: _selectedDonorUid,
-          senderId: user.uid, 
-          senderName: user.name, 
+          senderId: user.uid,
+          senderName: user.name,
           title: "You were tagged in a post!",
-          message: "${user.name} tagged you in their Impact Gallery.",
+          message:
+              "${user.name} tagged you in their Impact Gallery.",
           type: 'tag',
-          relatedItemId: postId, 
+          relatedItemId: postId,
           createdAt: DateTime.now(),
           isRead: false,
         );
@@ -115,32 +139,38 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('🎉 Post published to Impact Gallery!'), backgroundColor: Colors.green),
+        const SnackBar(
+          content:
+              Text('🎉 Post published to Impact Gallery!'),
+          backgroundColor: Colors.green,
+        ),
       );
-      Navigator.pop(context); 
-
+      Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e")));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // --- FIX: SEARCH BY USERNAME ONLY ---
-  Future<List<Map<String, String>>> _searchUsers(String query) async {
+  /// Searches users by username (strips leading '@').
+  Future<List<Map<String, String>>> _searchUsers(
+      String query) async {
     if (query.isEmpty) return [];
 
-    // Strip out the '@' if they typed it, and make it lowercase to match database
-    String safeQuery = query.replaceAll('@', '').toLowerCase();
+    String safeQuery =
+        query.replaceAll('@', '').toLowerCase();
 
     try {
       final snapshot = await FirebaseFirestore.instance
           .collection('users')
-          // Search by 'username' instead of 'name'
-          .where('username', isGreaterThanOrEqualTo: safeQuery)
-          .where('username', isLessThanOrEqualTo: '$safeQuery\uf8ff')
-          .limit(5) 
+          .where('username',
+              isGreaterThanOrEqualTo: safeQuery)
+          .where('username',
+              isLessThanOrEqualTo: '$safeQuery\uf8ff')
+          .limit(5)
           .get();
 
       return snapshot.docs.map((doc) {
@@ -148,11 +178,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         return {
           'uid': doc.id,
           'name': data['name'] as String? ?? 'Unknown',
-          'username': data['username'] as String? ?? '', 
+          'username':
+              data['username'] as String? ?? '',
         };
-      }).where((user) => user['username']!.isNotEmpty).toList(); // Only return users who actually have a username
+      }).where((u) => u['username']!.isNotEmpty).toList();
     } catch (e) {
-      print("Search error: $e");
+      debugPrint("Search error: $e");
       return [];
     }
   }
@@ -166,16 +197,23 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 22, color: Colors.black87),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: 22, color: Colors.black87),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text("New Post", style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+        title: const Text(
+          "New Post",
+          style: TextStyle(
+              color: Colors.black87,
+              fontWeight: FontWeight.bold),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ── Image picker ────────────────────────────
             GestureDetector(
               onTap: _pickImage,
               child: Container(
@@ -184,83 +222,149 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 decoration: BoxDecoration(
                   color: Colors.grey.shade200,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey.shade300, width: 2),
+                  border: Border.all(
+                      color: Colors.grey.shade300,
+                      width: 2),
                 ),
-                child: _selectedImage != null || _webImage != null
+                child: _selectedImage != null ||
+                        _webImage != null
                     ? ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius:
+                            BorderRadius.circular(14),
                         child: kIsWeb
-                            ? Image.memory(_webImage!, fit: BoxFit.cover)
-                            : Image.file(_selectedImage!, fit: BoxFit.cover),
+                            ? Image.memory(_webImage!,
+                                fit: BoxFit.cover)
+                            : Image.file(_selectedImage!,
+                                fit: BoxFit.cover),
                       )
                     : Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisAlignment:
+                            MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.add_a_photo_outlined, size: 50, color: themeColor),
+                          Icon(
+                              Icons.add_a_photo_outlined,
+                              size: 50,
+                              color: themeColor),
                           const SizedBox(height: 12),
-                          Text("Tap to upload a photo", style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
+                          Text(
+                            "Tap to upload a photo",
+                            style: TextStyle(
+                                color:
+                                    Colors.grey.shade600,
+                                fontWeight:
+                                    FontWeight.bold),
+                          ),
                         ],
                       ),
               ),
             ),
             const SizedBox(height: 24),
 
-            // --- INSTAGRAM-STYLE AUTOCOMPLETE TAGGING ---
-            const Text("Tag Donor (Optional)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            // ── Tag donor (autocomplete) ─────────────────
+            const Text(
+              "Tag Donor (Optional)",
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14),
+            ),
             const SizedBox(height: 8),
             Autocomplete<Map<String, String>>(
-              optionsBuilder: (TextEditingValue textEditingValue) async {
+              optionsBuilder:
+                  (TextEditingValue textEditingValue) async {
                 if (textEditingValue.text == '') {
-                  return const Iterable<Map<String, String>>.empty();
+                  return const Iterable<
+                      Map<String, String>>.empty();
                 }
-                return await _searchUsers(textEditingValue.text);
+                return await _searchUsers(
+                    textEditingValue.text);
               },
-              // Display ONLY the @username in the text box once selected
-              displayStringForOption: (Map<String, String> option) => "@${option['username']}",
+              displayStringForOption:
+                  (Map<String, String> option) =>
+                      "@${option['username']}",
               onSelected: (Map<String, String> selection) {
                 setState(() {
-                  _selectedDonorName = "@${selection['username']}";
+                  _selectedDonorName =
+                      "@${selection['username']}";
                   _selectedDonorUid = selection['uid']!;
                 });
               },
-              fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+              fieldViewBuilder: (context, controller,
+                  focusNode, onEditingComplete) {
                 return TextFormField(
                   controller: controller,
                   focusNode: focusNode,
                   onEditingComplete: onEditingComplete,
                   decoration: InputDecoration(
                     hintText: "Search @username...",
-                    prefixIcon: Icon(Icons.alternate_email_rounded, color: Colors.grey.shade500), // Changed icon to @
+                    prefixIcon: Icon(
+                        Icons.alternate_email_rounded,
+                        color: Colors.grey.shade500),
                     filled: true,
                     fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: themeColor)),
+                    contentPadding:
+                        const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 16),
+                    border: OutlineInputBorder(
+                        borderRadius:
+                            BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                            color: Colors.grey.shade300)),
+                    enabledBorder: OutlineInputBorder(
+                        borderRadius:
+                            BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                            color: Colors.grey.shade300)),
+                    focusedBorder: OutlineInputBorder(
+                        borderRadius:
+                            BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                            color: themeColor)),
                   ),
                 );
               },
-              optionsViewBuilder: (context, onSelected, options) {
+              optionsViewBuilder:
+                  (context, onSelected, options) {
                 return Align(
                   alignment: Alignment.topLeft,
                   child: Material(
                     elevation: 4.0,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius:
+                        BorderRadius.circular(12),
                     child: Container(
-                      width: MediaQuery.of(context).size.width - 40,
-                      constraints: const BoxConstraints(maxHeight: 200),
-                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                      width:
+                          MediaQuery.of(context).size.width -
+                              40,
+                      constraints: const BoxConstraints(
+                          maxHeight: 200),
+                      decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius:
+                              BorderRadius.circular(12)),
                       child: ListView.builder(
                         padding: const EdgeInsets.all(8),
                         itemCount: options.length,
                         shrinkWrap: true,
-                        itemBuilder: (BuildContext context, int index) {
-                          final option = options.elementAt(index);
+                        itemBuilder:
+                            (BuildContext context,
+                                int index) {
+                          final option =
+                              options.elementAt(index);
                           return ListTile(
-                            leading: CircleAvatar(backgroundColor: themeColor.withValues(alpha: 0.1), child: Icon(Icons.person, color: themeColor)),
-                            // --- FIX: Show ONLY the @username in the list ---
-                            title: Text("@${option['username']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                            onTap: () => onSelected(option),
+                            leading: CircleAvatar(
+                              backgroundColor: themeColor
+                                  .withValues(alpha: 0.1),
+                              child: Icon(Icons.person,
+                                  color: themeColor),
+                            ),
+                            title: Text(
+                              "@${option['username']}",
+                              style: const TextStyle(
+                                  fontWeight:
+                                      FontWeight.bold,
+                                  fontSize: 16),
+                            ),
+                            onTap: () =>
+                                onSelected(option),
                           );
                         },
                       ),
@@ -269,21 +373,40 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 );
               },
             ),
-            
+
             const SizedBox(height: 20),
 
-            const Text("Description", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            // ── Description ──────────────────────────────
+            const Text(
+              "Description",
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14),
+            ),
             const SizedBox(height: 8),
             TextFormField(
               controller: _descriptionController,
               maxLines: 4,
               decoration: InputDecoration(
-                hintText: "Write a caption about this impact...",
+                hintText:
+                    "Write a caption about this impact...",
                 filled: true,
                 fillColor: Colors.white,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: themeColor)),
+                border: OutlineInputBorder(
+                    borderRadius:
+                        BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                        color: Colors.grey.shade300)),
+                enabledBorder: OutlineInputBorder(
+                    borderRadius:
+                        BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                        color: Colors.grey.shade300)),
+                focusedBorder: OutlineInputBorder(
+                    borderRadius:
+                        BorderRadius.circular(12),
+                    borderSide:
+                        BorderSide(color: themeColor)),
               ),
             ),
             const SizedBox(height: 40),

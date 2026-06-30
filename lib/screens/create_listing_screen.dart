@@ -1,3 +1,4 @@
+//create_listing_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -210,6 +211,7 @@ DateTime selectedDateTime = DateTime(
         ngoId: user.uid,
         ngoName: user.name,
         ngoLocation: user.location,
+        ngoProfileImage: user.profileImage, // Image
         type: _listingType,
         imageUrl: null, // Image feature removed completely
         foodType: _listingType == 'food' ? _foodTypeController.text.trim() : null,

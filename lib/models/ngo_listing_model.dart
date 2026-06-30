@@ -1,3 +1,4 @@
+//ngo_listing_model.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class NgoListingModel {
@@ -24,6 +25,7 @@ class NgoListingModel {
   
   // --- Volunteer Availability Field ---
   final bool? isVolunteerAvailable; 
+  final String? ngoProfileImage; // ADD THIS
 
   NgoListingModel({
     required this.listingId,
@@ -43,6 +45,7 @@ class NgoListingModel {
     required this.createdAt,
     required this.status,
     this.isVolunteerAvailable, 
+    this.ngoProfileImage, // ADD THIS
   });
 
   Map<String, dynamic> toMap() {
@@ -64,6 +67,7 @@ class NgoListingModel {
       'createdAt': Timestamp.fromDate(createdAt),
       'status': status,
       'isVolunteerAvailable': isVolunteerAvailable, 
+      'ngoProfileImage': ngoProfileImage, // ADD THIS
     };
   }
 
@@ -91,6 +95,7 @@ class NgoListingModel {
 
       status: map['status'] ?? 'open',
       isVolunteerAvailable: map['isVolunteerAvailable'] as bool?, 
+      ngoProfileImage: map['ngoProfileImage'] as String?, // ADD THIS
     );
   }
 }

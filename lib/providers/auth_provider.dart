@@ -1,13 +1,15 @@
-//auth_provider.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../services/auth_service.dart';
 import '../models/user_model.dart';
+import 'dart:async';
 
 class AuthProvider with ChangeNotifier {
   final AuthService _authService = AuthService();
+
+  late final StreamSubscription<User?> _authSubscription;
 
   UserModel? _currentUserModel;
   bool _isLoading = false;
@@ -16,6 +18,8 @@ class AuthProvider with ChangeNotifier {
   UserModel? get user => _currentUserModel;
   bool get isLoading => _isLoading;
 
+  // EXPOSE AUTH SERVICE: This allows login screens to reference authProvider.authService
+  AuthService get authService => _authService;
   User? get currentFirebaseUser => FirebaseAuth.instance.currentUser;
 
   AuthProvider() {
@@ -23,6 +27,7 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> _init() async {
+    _authSubscription =
     _authService.authStateChanges.listen((User? firebaseUser) async {
       if (firebaseUser != null) {
         await _fetchUserData(firebaseUser.uid);
@@ -89,7 +94,8 @@ class AuthProvider with ChangeNotifier {
     }
 
     if (user.role.toLowerCase() != expectedRole.toLowerCase()) {
-      await FirebaseAuth.instance.signOut();
+      //await FirebaseAuth.instance.signOut();
+      await _authService.signOut();
       notifyListeners();
       return false;
     }
@@ -117,7 +123,6 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // Register flow: pass the role down so new users get it saved correctly
       final String? assignRole = role;
 
       UserModel? googleUser =
@@ -132,7 +137,8 @@ class AuthProvider with ChangeNotifier {
       // LOGIN screen role check — reject if role doesn't match
       if (expectedRole != null &&
           googleUser.role.toLowerCase() != expectedRole.toLowerCase()) {
-        await FirebaseAuth.instance.signOut();
+        //await FirebaseAuth.instance.signOut();
+        await _authService.signOut();
         _isLoading = false;
         notifyListeners();
         return false;
@@ -149,7 +155,7 @@ class AuthProvider with ChangeNotifier {
     }
 
     _isLoading = false;
-    notifyListeners();
+    //notifyListeners();
     return false;
   }
 
@@ -196,11 +202,26 @@ class AuthProvider with ChangeNotifier {
     return false;
   }
 
+  // ================= FORGOT PASSWORD =================
+
+  Future<String?> forgotPassword(String email) async {
+    _isLoading = true;
+    notifyListeners();
+
+    final error = await _authService.sendPasswordResetEmail(email);
+
+    _isLoading = false;
+    notifyListeners();
+
+    return error; // null = success, non-null = error message
+  }
+
   // ================= SIGN OUT =================
 
   Future<void> signOut() async {
     try {
-      await FirebaseAuth.instance.signOut();
+      //await FirebaseAuth.instance.signOut();
+      await _authService.signOut();
       _currentUserModel = null;
       notifyListeners();
     } catch (e) {
@@ -231,12 +252,45 @@ class AuthProvider with ChangeNotifier {
       if (license != null) data['license'] = license;
 
       if (data.isNotEmpty) {
+        final uid = _currentUserModel!.uid;
+
         await FirebaseFirestore.instance
             .collection('users')
-            .doc(_currentUserModel!.uid)
+            .doc(uid)
             .update(data);
 
-        await _fetchUserData(_currentUserModel!.uid);
+        // When profile image changes, propagate to all listings and posts
+        if (profileImage != null) {
+          // Update ngo_listings
+          final listingsSnap = await FirebaseFirestore.instance
+              .collection('ngo_listings')
+              .where('ngoId', isEqualTo: uid)
+              .get();
+
+          if (listingsSnap.docs.isNotEmpty) {
+            final listingsBatch = FirebaseFirestore.instance.batch();
+            for (final doc in listingsSnap.docs) {
+              listingsBatch.update(doc.reference, {'ngoProfileImage': profileImage});
+            }
+            await listingsBatch.commit();
+          }
+
+          // Update posts
+          final postsSnap = await FirebaseFirestore.instance
+              .collection('posts')
+              .where('ngoId', isEqualTo: uid)
+              .get();
+
+          if (postsSnap.docs.isNotEmpty) {
+            final postsBatch = FirebaseFirestore.instance.batch();
+            for (final doc in postsSnap.docs) {
+              postsBatch.update(doc.reference, {'ngoProfileImage': profileImage});
+            }
+            await postsBatch.commit();
+          }
+        }
+
+        await _fetchUserData(uid);
       }
 
       return true;
@@ -245,4 +299,10 @@ class AuthProvider with ChangeNotifier {
       return false;
     }
   }
+@override
+void dispose() {
+  _authSubscription.cancel();
+  super.dispose();
+
+}
 }

@@ -1,3 +1,4 @@
+//chat_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:ui';
@@ -5,13 +6,19 @@ import 'dart:ui';
 import '../models/message_model.dart';
 import '../services/chat_service.dart';
 import '../providers/auth_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ChatScreen extends StatefulWidget {
   final String otherUserId;
   final String otherUserName;
+  final String? otherUserProfileImage;
 
-  const ChatScreen({Key? key, required this.otherUserId, required this.otherUserName}) : super(key: key);
-
+  const ChatScreen({
+    Key? key, 
+    required this.otherUserId, 
+    required this.otherUserName,
+    this.otherUserProfileImage,
+  }) : super(key: key);
   @override
   State<ChatScreen> createState() => _ChatScreenState();
 }
@@ -118,12 +125,19 @@ class _ChatScreenState extends State<ChatScreen> {
           title: Row(
             children: [
               CircleAvatar(
-                backgroundColor: themeColor.withOpacity(0.1), 
-                radius: 18, 
-                child: Text(
-                  widget.otherUserName[0].toUpperCase(), 
-                  style: TextStyle(color: themeColor, fontWeight: FontWeight.bold)
-                )
+                backgroundColor: themeColor.withOpacity(0.1),
+                radius: 18,
+                backgroundImage: (widget.otherUserProfileImage != null && 
+                    widget.otherUserProfileImage!.isNotEmpty)
+                    ? NetworkImage(widget.otherUserProfileImage!)
+                    : null,
+                child: (widget.otherUserProfileImage == null || 
+                    widget.otherUserProfileImage!.isEmpty)
+                    ? Text(
+                        widget.otherUserName[0].toUpperCase(),
+                        style: TextStyle(color: themeColor, fontWeight: FontWeight.bold),
+                      )
+                    : null,
               ),
               const SizedBox(width: 12),
               Expanded(

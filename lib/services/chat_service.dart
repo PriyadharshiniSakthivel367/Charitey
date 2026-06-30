@@ -1,3 +1,4 @@
+//chat_service.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/message_model.dart';
 import '../models/chat_preview_model.dart';
@@ -28,10 +29,21 @@ class ChatService {
       // 1. Add the actual message to the chat room
       await _firestore.collection('chats').doc(chatRoomId).collection('messages').add(newMessage.toMap());
 
+      // Fetch both profile images for cross-storage
+      String? senderProfileImage;
+      String? receiverProfileImage;
+      try {
+        final senderDoc = await _firestore.collection('users').doc(senderId).get();
+        senderProfileImage = (senderDoc.data() as Map<String, dynamic>?)?['profileImage'] as String?;
+        final receiverDoc = await _firestore.collection('users').doc(receiverId).get();
+        receiverProfileImage = (receiverDoc.data() as Map<String, dynamic>?)?['profileImage'] as String?;
+      } catch (_) {}
+
       // 2. Update the Sender's Inbox
       await _firestore.collection('users').doc(senderId).collection('chat_previews').doc(chatRoomId).set({
         'participantId': receiverId,
         'participantName': receiverName,
+        'participantProfileImage': receiverProfileImage ?? '',
         'lastMessage': message,
         'lastMessageTime': FieldValue.serverTimestamp(),
         'hasUnread': false,
@@ -41,11 +53,11 @@ class ChatService {
       await _firestore.collection('users').doc(receiverId).collection('chat_previews').doc(chatRoomId).set({
         'participantId': senderId,
         'participantName': senderName,
+        'participantProfileImage': senderProfileImage ?? '',
         'lastMessage': message,
         'lastMessageTime': FieldValue.serverTimestamp(),
-        'hasUnread': true, 
+        'hasUnread': true,
       }, SetOptions(merge: true));
-
       // --- 4. THE CUSTOMIZED NOTIFICATION ALERT ---
       String notifTitle;
       String notifMessage;

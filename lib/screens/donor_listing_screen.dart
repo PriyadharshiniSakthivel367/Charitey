@@ -1,3 +1,4 @@
+//donor_listing_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart'; 
 import '../providers/auth_provider.dart'; 
@@ -427,7 +428,7 @@ final double progress =
     // Perfect handling for the Profile Image and NGO Name
     String actualNgoName = (listing.ngoName.isNotEmpty) ? listing.ngoName : 'Verified NGO';
     String ngoInitial = actualNgoName.substring(0, 1).toUpperCase();
-    bool hasImage = listing.imageUrl != null && listing.imageUrl!.isNotEmpty;
+    bool hasImage = listing.ngoProfileImage != null && listing.ngoProfileImage!.isNotEmpty;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
@@ -456,7 +457,7 @@ final double progress =
                   child: hasImage 
                       ? ClipOval(
                           child: Image.network(
-                            listing.imageUrl!, 
+                            listing.ngoProfileImage!, 
                             fit: BoxFit.cover,
                             // Error handler just in case the URL is broken
                             errorBuilder: (context, error, stackTrace) => Center(
