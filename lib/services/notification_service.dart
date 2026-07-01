@@ -19,6 +19,13 @@ class NotificationService {
       print('User granted permission');
     }
 
+    // 👇 NEW: This forces the notification to pop up at the top even if the app is OPEN! 👇
+    await _firebaseMessaging.setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
     final fCMToken = await _firebaseMessaging.getToken();
 
 print("================================");

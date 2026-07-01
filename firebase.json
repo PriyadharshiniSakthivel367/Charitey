@@ -1,1 +1,62 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"charitey-37ce8","appId":"1:49324937832:android:a09673ba5590f134a561dd","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"charitey-37ce8","configurations":{"android":"1:49324937832:android:a09673ba5590f134a561dd","web":"1:49324937832:web:2483eb7807d59da3a561dd"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "charitey-37ce8",
+          "appId": "1:49324937832:android:a09673ba5590f134a561dd",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "charitey-37ce8",
+          "configurations": {
+            "android": "1:49324937832:android:a09673ba5590f134a561dd",
+            "ios": "1:49324937832:ios:23b1f8f0c522d7a7a561dd",
+            "macos": "1:49324937832:ios:23b1f8f0c522d7a7a561dd",
+            "web": "1:49324937832:web:2483eb7807d59da3a561dd",
+            "windows": "1:49324937832:web:67d90889762de811a561dd"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "disallowLegacyRuntimeConfig": true,
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run lint"
+      ]
+    }
+  ],
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/__/auth/action",
+        "function": null,
+        "dynamicLinks": false,
+        "destination": "https://charitey-password-reset.charitey12.workers.dev"
+      },
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}

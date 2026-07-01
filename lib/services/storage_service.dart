@@ -52,7 +52,8 @@ class StorageService {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
-        final String secureUrl = data['secure_url'];
+        final secureUrl =
+    data['secure_url'] as String?;
         
         debugPrint("🎉 Cloudinary Media Upload Successful: $secureUrl");
         return secureUrl; // Returns the clean string URL directly into your Firestore records

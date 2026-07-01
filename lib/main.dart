@@ -1,3 +1,4 @@
+//main.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +9,7 @@ import 'screens/profile_setup_screen.dart';
 import 'providers/auth_provider.dart';
 import 'services/notification_service.dart';
 import 'package:flutter/foundation.dart';
+import 'screens/forgot_password_screen.dart';
 
 // --- FIX 1: Removed the underscore from HomeScreenState ---
 final GlobalKey<HomeScreenState> homeScreenKey = GlobalKey<HomeScreenState>();
