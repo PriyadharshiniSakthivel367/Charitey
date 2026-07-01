@@ -45,7 +45,14 @@ class HomeScreenState extends State<HomeScreen> {
     super.initState();
     _currentIndex = widget.initialIndex;
     targetPostId = widget.targetPostId;
-  }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+    final user = Provider.of<AuthProvider>(context, listen: false).currentUserModel;
+    if (user != null && user.role == 'ngo') {
+      FirestoreService().cleanUpExpiredRequests(user.uid);
+    }
+  });
+}
+  
 
   void switchTab(int index, {String? postId}) {
     setState(() {

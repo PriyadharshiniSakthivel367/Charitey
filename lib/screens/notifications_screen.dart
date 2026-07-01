@@ -8,50 +8,37 @@ import 'chat_screen.dart';
 import 'home_screen.dart';
 
 class NotificationsScreen extends StatelessWidget {
-  const NotificationsScreen({Key? key}) : super(key: key);
+  const NotificationsScreen({super.key});
 
-  // --- PRIVATE HELPER TO FETCH REAL TIME DATA DYNAMICALLY ---
   Future<Map<String, dynamic>> _fetchDetailsData(NotificationModel notif, bool isDonationOffer, bool amINGO) async {
     Map<String, dynamic> result = {};
-
     try {
       if (isDonationOffer) {
-        DocumentSnapshot donationSnap = await FirebaseFirestore.instance
-            .collection('donations')
-            .doc(notif.relatedItemId)
-            .get();
-
+        DocumentSnapshot donationSnap = await FirebaseFirestore.instance.collection('donations').doc(notif.relatedItemId).get();
         if (donationSnap.exists && donationSnap.data() != null) {
           var donationData = donationSnap.data() as Map<String, dynamic>;
           result['donationData'] = donationData;
-
           if (!amINGO) {
             String? ngoId = donationData['ngoId'] ?? notif.receiverId;
             if (ngoId != null && ngoId.isNotEmpty) {
-              DocumentSnapshot ngoSnap = await FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(ngoId)
-                  .get();
+              DocumentSnapshot ngoSnap = await FirebaseFirestore.instance.collection('users').doc(ngoId).get();
               if (ngoSnap.exists && ngoSnap.data() != null) {
                 result['ngoProfileData'] = ngoSnap.data() as Map<String, dynamic>;
               }
             }
+          } else {
+            DocumentSnapshot senderSnap = await FirebaseFirestore.instance.collection('users').doc(notif.senderId).get();
+            if (senderSnap.exists && senderSnap.data() != null) {
+              result['senderProfileData'] = senderSnap.data() as Map<String, dynamic>;
+            }
           }
         }
       } else {
-        DocumentSnapshot senderSnap = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(notif.senderId)
-            .get();
-
+        DocumentSnapshot senderSnap = await FirebaseFirestore.instance.collection('users').doc(notif.senderId).get();
         if (senderSnap.exists && senderSnap.data() != null) {
           result['senderProfileData'] = senderSnap.data() as Map<String, dynamic>;
         }
-
-        DocumentSnapshot notifSnap = await FirebaseFirestore.instance
-            .collection('notifications')
-            .doc(notif.id)
-            .get();
+        DocumentSnapshot notifSnap = await FirebaseFirestore.instance.collection('notifications').doc(notif.id).get();
         if (notifSnap.exists && notifSnap.data() != null) {
           result['notifData'] = notifSnap.data() as Map<String, dynamic>;
         }
@@ -59,12 +46,10 @@ class NotificationsScreen extends StatelessWidget {
     } catch (e) {
       print("Error fetching dynamic notification details: $e");
     }
-
     return result;
   }
 
-  // --- SMART UNIFIED POPUP ---
-  void _showRichDetailsPopup(BuildContext context, NotificationModel notif, Color themeColor, bool isDonationOffer) {
+  void showRichDetailsPopup(BuildContext context, NotificationModel notif, Color themeColor, bool isDonationOffer) {
     final currentUser = Provider.of<AuthProvider>(context, listen: false).currentUserModel;
     bool amINGO = currentUser?.role == 'ngo';
 
@@ -79,9 +64,9 @@ class NotificationsScreen extends StatelessWidget {
               Icon(isDonationOffer ? Icons.volunteer_activism : Icons.message_rounded, color: themeColor),
               const SizedBox(width: 10),
               Text(
-                isDonationOffer ? "Donation Details" : "Contact Details", 
+                isDonationOffer ? "Donation Details" : "Contact Details",
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)
-              ),
+              )
             ],
           ),
           content: FutureBuilder<Map<String, dynamic>>(
@@ -93,16 +78,14 @@ class NotificationsScreen extends StatelessWidget {
               if (!snapshot.hasData || snapshot.data!.isEmpty) {
                 return const Text("Details no longer available.");
               }
-              
               var fetchedData = snapshot.data!;
-              
               String displayTitle = "";
               String nameLabel = "";
               String locationLabel = "";
               String contactName = "";
               String contactPhone = "";
               String contactLocation = "";
-              String targetChatId = ""; 
+              String targetChatId = "";
 
               if (isDonationOffer) {
                 var donationData = fetchedData['donationData'] ?? {};
@@ -113,22 +96,20 @@ class NotificationsScreen extends StatelessWidget {
                   contactName = donationData['donorName'] ?? 'Unknown Donor';
                   contactPhone = donationData['donorPhone'] ?? 'Unknown Phone';
                   contactLocation = donationData['donorLocation'] ?? 'Unknown Location';
-                  targetChatId = donationData['donorId'] ?? notif.senderId; 
+                  targetChatId = donationData['donorId'] ?? notif.senderId;
                 } else {
                   displayTitle = "Donating To:";
                   nameLabel = "Organization Name";
                   locationLabel = "Drop-off/NGO Location";
-                  
                   var ngoProfile = fetchedData['ngoProfileData'] ?? {};
-                  contactName = ngoProfile['ngoName'] ?? ngoProfile['name'] ?? donationData['ngoName'] ?? 'Unknown NGO'; 
-                  contactPhone = ngoProfile['phone'] ?? ngoProfile['ngoPhone'] ?? donationData['ngoPhone'] ?? 'Not Provided'; 
+                  contactName = ngoProfile['ngoName'] ?? ngoProfile['name'] ?? donationData['ngoName'] ?? 'Unknown NGO';
+                  contactPhone = ngoProfile['phone'] ?? ngoProfile['ngoPhone'] ?? donationData['ngoPhone'] ?? 'Not Provided';
                   contactLocation = ngoProfile['address'] ?? ngoProfile['location'] ?? donationData['ngoLocation'] ?? 'Not Provided';
-                  targetChatId = donationData['ngoId'] ?? notif.receiverId; 
+                  targetChatId = donationData['ngoId'] ?? notif.receiverId;
                 }
               } else {
                 var senderProfile = fetchedData['senderProfileData'] ?? {};
                 var notifData = fetchedData['notifData'] ?? {};
-                
                 nameLabel = "Sender Name";
                 locationLabel = "Location";
                 contactName = senderProfile['name'] ?? senderProfile['ngoName'] ?? notif.senderName;
@@ -136,7 +117,7 @@ class NotificationsScreen extends StatelessWidget {
                 contactLocation = senderProfile['address'] ?? senderProfile['location'] ?? notifData['senderLocation'] ?? 'Not Provided';
                 targetChatId = notif.senderId;
               }
-              
+
               return Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -154,37 +135,35 @@ class NotificationsScreen extends StatelessWidget {
                       border: Border.all(color: Colors.grey.shade300)
                     ),
                     child: Text(
-                      notif.message, 
+                      notif.message,
                       style: TextStyle(color: Colors.grey.shade700, fontStyle: FontStyle.italic, height: 1.4),
                     ),
                   ),
                   const SizedBox(height: 20),
-                  
                   _detailRow(Icons.person_outline, nameLabel, contactName, themeColor),
                   const SizedBox(height: 16),
                   _detailRow(Icons.phone_outlined, "Contact Number", contactPhone, themeColor),
                   const SizedBox(height: 16),
                   _detailRow(Icons.location_on_outlined, locationLabel, contactLocation, themeColor),
-                  
                   const SizedBox(height: 30),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       onPressed: () {
-                        Navigator.pop(context); 
+                        Navigator.pop(context);
                         Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (context) => ChatScreen(
                               otherUserId: targetChatId,
                               otherUserName: contactName,
-                            ),
-                          ),
+                            )
+                          )
                         );
                       },
                       icon: const Icon(Icons.chat_bubble_rounded),
                       label: Text(
-                        isDonationOffer ? (amINGO ? "Accept & Chat with Donor" : "Chat with NGO") : "Open Chat", 
+                        isDonationOffer ? (amINGO ? "Accept & Chat with Donor" : "Chat with NGO") : "Open Chat",
                         style: const TextStyle(fontWeight: FontWeight.bold)
                       ),
                       style: ElevatedButton.styleFrom(
@@ -205,16 +184,72 @@ class NotificationsScreen extends StatelessWidget {
     );
   }
 
-  // ============================================================================
-  // NEW: DONOR CANCELLATION DETAILS BOTTOM SHEET
-  // ============================================================================
+  // 👇 NEW: EXPIRATION DETAILS POPUP 👇
+  void _showExpirationDetails(BuildContext context, NotificationModel notif) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              const Icon(Icons.timer_off_rounded, color: Colors.orange),
+              const SizedBox(width: 10),
+              const Text("Request Expired", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18))
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange.shade200)
+                ),
+                child: Text(
+                  notif.message,
+                  style: TextStyle(color: Colors.orange.shade900, fontSize: 14, height: 1.4),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                "Because the deadline has passed, this request is no longer visible to donors. If you still need these items, please create a new request.",
+                style: TextStyle(color: Colors.black87, height: 1.4),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                  child: const Text("Understood", style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              )
+            ],
+          ),
+        );
+      }
+    );
+  }
+
   void _showDonorCancellationDetails(BuildContext context, NotificationModel notification, Color themeColor) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25))
       ),
       builder: (context) {
         return FutureBuilder<DocumentSnapshot>(
@@ -223,11 +258,9 @@ class NotificationsScreen extends StatelessWidget {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return SizedBox(height: 200, child: Center(child: CircularProgressIndicator(color: themeColor)));
             }
-
             if (!snapshot.hasData || !snapshot.data!.exists) {
               return const SizedBox(height: 200, child: Center(child: Text("Donor details no longer available.")));
             }
-
             var donorData = snapshot.data!.data() as Map<String, dynamic>;
             String contactName = donorData['name'] ?? notification.senderName;
 
@@ -239,19 +272,13 @@ class NotificationsScreen extends StatelessWidget {
                 children: [
                   Center(
                     child: Container(
-                      width: 40,
-                      height: 4,
+                      width: 40, height: 4,
                       decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10)),
                     ),
                   ),
                   const SizedBox(height: 20),
-                  const Text(
-                    "Cancellation Details",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red),
-                  ),
+                  const Text("Cancellation Details", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red)),
                   const SizedBox(height: 16),
-                  
-                  // Shows the reason and the phone number parsed from the profile screen
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
@@ -261,15 +288,13 @@ class NotificationsScreen extends StatelessWidget {
                       border: Border.all(color: Colors.red.shade100),
                     ),
                     child: Text(
-                      notification.message, 
+                      notification.message,
                       style: TextStyle(color: Colors.red.shade900, fontSize: 14, height: 1.4),
                     ),
                   ),
                   const SizedBox(height: 24),
-                  
                   const Text("Donor Information", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                   const SizedBox(height: 16),
-                  
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: CircleAvatar(
@@ -287,28 +312,27 @@ class NotificationsScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 6),
-                        Text("📞 ${donorData['phone'] ?? 'No phone provided'}", style: TextStyle(color: Colors.grey.shade700)),
+                        Text("${donorData['phone'] ?? 'No phone provided'}", style: TextStyle(color: Colors.grey.shade700)),
                         const SizedBox(height: 4),
-                        Text("📍 ${donorData['location'] ?? 'No location provided'}", style: TextStyle(color: Colors.grey.shade700)),
+                        Text("${donorData['location'] ?? 'No Location provided'}", style: TextStyle(color: Colors.grey.shade700)),
                       ],
                     ),
                   ),
                   const SizedBox(height: 30),
-                  
                   SizedBox(
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton.icon(
                       onPressed: () {
-                        Navigator.pop(context); 
+                        Navigator.pop(context);
                         Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (context) => ChatScreen(
                               otherUserId: notification.senderId,
                               otherUserName: contactName,
-                            ),
-                          ),
+                            )
+                          )
                         );
                       },
                       icon: const Icon(Icons.chat_bubble_rounded, color: Colors.white),
@@ -319,13 +343,13 @@ class NotificationsScreen extends StatelessWidget {
                         elevation: 0,
                       ),
                     ),
-                  ),
+                  )
                 ],
               ),
             );
-          },
+          }
         );
-      },
+      }
     );
   }
 
@@ -344,7 +368,7 @@ class NotificationsScreen extends StatelessWidget {
               Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
             ],
           ),
-        )
+        ),
       ],
     );
   }
@@ -381,13 +405,11 @@ class NotificationsScreen extends StatelessWidget {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Center(child: CircularProgressIndicator(color: themeColor));
           }
-
           if (snapshot.hasError) {
             return const Center(child: Text("Error loading notifications."));
           }
-
+          
           final notifications = snapshot.data ?? [];
-
           if (notifications.isEmpty) {
             return Center(
               child: Column(
@@ -407,36 +429,39 @@ class NotificationsScreen extends StatelessWidget {
             itemBuilder: (context, index) {
               final notif = notifications[index];
               bool isMessage = notif.type == 'new_message';
-              bool isTag = notif.type == 'tag'; 
+              bool isTag = notif.type == 'tag';
               bool isDonationOffer = notif.type == 'donation_offer';
-              
-              // NEW: Identifies a cancellation notification
               bool isCancellation = notif.type == 'donation_cancelled';
+              // 👇 NEW: Expiration Checker
+              bool isExpiration = notif.type == 'expired_request';
 
               return Container(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: notif.isRead ? Colors.white : themeColor.withValues(alpha: 0.05),
+                  color: notif.isRead ? Colors.white : themeColor.withOpacity(0.05),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: notif.isRead ? Colors.grey.shade200 : themeColor.withValues(alpha: 0.3),
+                    color: notif.isRead ? Colors.grey.shade200 : themeColor.withOpacity(0.3),
                   ),
                 ),
                 child: ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   leading: CircleAvatar(
-                    backgroundColor: isCancellation ? Colors.red.shade50 : themeColor.withValues(alpha: 0.1),
+                    backgroundColor: isCancellation ? Colors.red.shade50 : (isExpiration ? Colors.orange.shade50 : themeColor.withOpacity(0.1)),
                     child: Icon(
-                      // NEW: Red icon for cancellations
-                      isCancellation ? Icons.cancel_presentation_rounded : (isTag ? Icons.photo_library_rounded : (isMessage ? Icons.message_rounded : Icons.volunteer_activism)), 
-                      color: isCancellation ? Colors.red : themeColor
+                      isCancellation 
+                          ? Icons.cancel_presentation_rounded 
+                          : isExpiration 
+                              ? Icons.timer_off_rounded // Timer icon for expiration
+                              : (isTag ? Icons.photo_library_rounded : (isMessage ? Icons.message_rounded : Icons.volunteer_activism)),
+                      color: isCancellation ? Colors.red : (isExpiration ? Colors.orange : themeColor),
                     ),
                   ),
                   title: Text(
                     notif.title,
                     style: TextStyle(
                       fontWeight: notif.isRead ? FontWeight.w600 : FontWeight.bold,
-                      color: isCancellation ? Colors.red.shade900 : Colors.black87, // Highlight title in red
+                      color: isCancellation ? Colors.red.shade900 : (isExpiration ? Colors.orange.shade900 : Colors.black87),
                     ),
                   ),
                   subtitle: Padding(
@@ -449,31 +474,25 @@ class NotificationsScreen extends StatelessWidget {
                     ),
                   ),
                   trailing: notif.isRead ? null : Container(
-                    width: 10,
-                    height: 10,
+                    width: 10, height: 10,
                     decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
                   ),
                   onTap: () {
                     if (!notif.isRead) {
                       firestoreService.markNotificationAsRead(notif.id);
                     }
-                    
                     if (isTag) {
                       Navigator.pushAndRemoveUntil(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => HomeScreen(
-                            initialIndex: 1, 
-                            targetPostId: notif.relatedItemId, 
-                          ),
-                        ),
-                        (Route<dynamic> route) => false, 
+                        MaterialPageRoute(builder: (context) => HomeScreen(initialIndex: 1, targetPostId: notif.relatedItemId)),
+                        (Route<dynamic> route) => false,
                       );
                     } else if (isCancellation) {
-                      // NEW: Opens the cancellation bottom sheet
                       _showDonorCancellationDetails(context, notif, themeColor);
+                    } else if (isExpiration) {
+                      _showExpirationDetails(context, notif); // Show Expiration details popup
                     } else {
-                      _showRichDetailsPopup(context, notif, themeColor, isDonationOffer);
+                      showRichDetailsPopup(context, notif, themeColor, isDonationOffer);
                     }
                   },
                 ),
