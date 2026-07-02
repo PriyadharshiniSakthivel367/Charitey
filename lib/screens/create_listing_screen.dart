@@ -36,6 +36,7 @@ class CreateListingScreenState extends State<CreateListingScreen> {
   final TextEditingController _categoryController = TextEditingController();
   final TextEditingController _productNameController = TextEditingController();
   final TextEditingController _availabilityController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();  // <-- ADD THIS LINE
   
   bool _isLoading = false;
   final Color themeColor = const Color(0xFF7D444C); // App Theme Color
@@ -58,6 +59,7 @@ class CreateListingScreenState extends State<CreateListingScreen> {
     _categoryController.dispose();
     _productNameController.dispose();
     _availabilityController.dispose();
+    _descriptionController.dispose(); // <-- ADD THIS LINE
     super.dispose();
   }
 
@@ -224,6 +226,7 @@ DateTime selectedDateTime = DateTime(
         createdAt: DateTime.now(),
         status: 'open',
         isVolunteerAvailable: _isVolunteerAvailable,
+        description: _descriptionController.text.trim().isNotEmpty ? _descriptionController.text.trim() : null, // <-- ADD THIS LINE
       );
 
       await firestoreService.createNgoListing(newListing);
@@ -686,6 +689,27 @@ DateTime selectedDateTime = DateTime(
                                       ),
                                       
                                       const SizedBox(height: 24),
+                                      // 👇 ADD THIS NEW DESCRIPTION FIELD 👇
+TextFormField(
+  controller: _descriptionController,
+  maxLines: 3,
+  style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87),
+  decoration: InputDecoration(
+    hintText: "Add details or description (Optional)",
+    hintStyle: TextStyle(color: Colors.grey.shade400, fontWeight: FontWeight.w500),
+    filled: true,
+    fillColor: Colors.grey.shade50,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16), 
+      borderSide: BorderSide(color: themeColor.withOpacity(0.5), width: 1.5)
+    ),
+  ),
+),
+const SizedBox(height: 24),
+// 👆 END NEW DESCRIPTION FIELD 👆
                                       
                                       // 1. Enhanced Header
                                       Row(
@@ -704,6 +728,7 @@ DateTime selectedDateTime = DateTime(
                                         style: TextStyle(fontSize: 13, color: Colors.grey.shade600, height: 1.5),
                                       ),
                                       const SizedBox(height: 16),
+                                      
                                       
                                       // 2. Premium Toggle Card
                                       GestureDetector(

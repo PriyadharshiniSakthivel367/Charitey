@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "49324937832-45gr1ad49es0mf2t8lggpp6ns29h8fr3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.charity_app",
+            "certificate_hash": "ef3a634fe81bab5bd172eb12868c1e53cccbd832"
+          }
+        },
+        {
           "client_id": "49324937832-6057vsokoeh9l31tlno556l0p6lvkiiv.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
@@ -30,6 +38,14 @@
           }
         },
         {
+          "client_id": "49324937832-jo2qhi2o0imelb5914t5l38v1g6ped28.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.charity_app",
+            "certificate_hash": "299b6313538c4e31c02c3162e73cbafcf8b94c9c"
+          }
+        },
+        {
           "client_id": "49324937832-tpqqqr6qleqas1f5imltqc07j27isgn3.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -43,8 +59,15 @@
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "49324937832-amikmbcqkaigalqpvksu5m862qecinq7.apps.googleusercontent.com",
+              "client_id": "49324937832-gt9fhvj9gp5vpldul21gd7tbf7uo9scs.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "49324937832-ge0p910ug1m27cktr3mkv8cnii6bs9vm.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.charityApp"
+              }
             }
           ]
         }

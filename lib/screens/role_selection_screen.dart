@@ -62,6 +62,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
         builder: (context, child) {
           return Container(
             decoration: BoxDecoration(
+              color: primary,
               gradient: LinearGradient(
                 begin: Alignment(
                   math.cos(_bgController.value * 2 * math.pi),
@@ -106,14 +107,11 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 90),
-            // Title Section
             _buildCenteredTitle(),
             const SizedBox(height: 24),
-            // Decorative Line with Heart
             _buildDecorativeLine(),
             const SizedBox(height: 80),
 
-            // ── ROLE CARDS ──────────────────────────────────────────────
             _roleCard(
               title: "Donor",
               icon: Icons.volunteer_activism,
@@ -199,9 +197,9 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
           style: GoogleFonts.playfairDisplay(
             color: Colors.white,
             fontSize: 46,
-            height: 1.1, // Tightens the spacing between the two lines
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1,
+            height: 1.1,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.5,
             shadows: const [
               Shadow(
                 blurRadius: 12,
@@ -218,7 +216,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
           style: TextStyle(
             color: Color(0xffF9E9EA),
             fontSize: 21,
-            height: 1.3, // Adds a little breathing room to the subtitle lines
+            height: 1.3,
             fontStyle: FontStyle.italic,
             fontWeight: FontWeight.w500,
           ),
@@ -235,12 +233,10 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 68, // <-- Reduced box height from 78 to 68
+        height: 72,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(
-            25,
-          ), // <-- Slightly reduced border radius
+          borderRadius: BorderRadius.circular(30),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.18),
@@ -250,39 +246,37 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Row(
             children: [
               // Main Icon Container
               Container(
-                width: 48, // <-- Reduced from 54
-                height: 48, // <-- Reduced from 54
+                width: 52,
+                height: 52,
                 decoration: const BoxDecoration(
                   color: primary,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  icon,
-                  color: Colors.white,
-                  size: 24, // <-- Reduced from 28
-                ),
+                child: Icon(icon, color: Colors.white, size: 26),
               ),
-              const SizedBox(width: 16),
-              // Text
+              const SizedBox(width: 18),
+              // Text - More Bold as requested
               Expanded(
                 child: Text(
                   title,
                   style: GoogleFonts.playfairDisplay(
-                    fontSize: 22, // <-- Reduced font size from 24 to 22
-                    fontWeight: FontWeight.bold,
+                    fontSize: 23,
+                    fontWeight:
+                        FontWeight.w900, // Increased to maximum boldness
                     color: primary,
+                    letterSpacing: 0.8,
                   ),
                 ),
               ),
               // Trailing Arrow Container
               Container(
-                width: 34, // <-- Reduced from 38
-                height: 34, // <-- Reduced from 38
+                width: 36,
+                height: 36,
                 decoration: const BoxDecoration(
                   color: Color(0xffF7ECEC),
                   shape: BoxShape.circle,
@@ -290,7 +284,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
                 child: const Icon(
                   Icons.arrow_forward_ios_rounded,
                   color: primary,
-                  size: 14, // <-- Reduced from 16
+                  size: 15,
                 ),
               ),
             ],

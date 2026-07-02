@@ -6,6 +6,7 @@ class MessageModel {
   final String receiverId;
   final String message;
   final DateTime timestamp;
+  final bool delivered;
   final bool read;
 
   MessageModel({
@@ -14,6 +15,7 @@ class MessageModel {
     required this.receiverId,
     required this.message,
     required this.timestamp,
+    this.delivered = false,
     this.read = false,
   });
 
@@ -24,6 +26,7 @@ class MessageModel {
       'receiverId': receiverId,
       'message': message,
       'timestamp': Timestamp.fromDate(timestamp),
+      'delivered': delivered,
       'read': read,
     };
   }
@@ -35,6 +38,7 @@ class MessageModel {
       receiverId: map['receiverId'] ?? '',
       message: map['message'] ?? '',
       timestamp: (map['timestamp'] as Timestamp).toDate(),
+      delivered: map['delivered'] ?? false,
       read: map['read'] ?? false,
     );
   }

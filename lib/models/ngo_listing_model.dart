@@ -26,6 +26,7 @@ class NgoListingModel {
   // --- Volunteer Availability Field ---
   final bool? isVolunteerAvailable; 
   final String? ngoProfileImage; // ADD THIS
+  final String? description;
 
   NgoListingModel({
     required this.listingId,
@@ -46,6 +47,7 @@ class NgoListingModel {
     required this.status,
     this.isVolunteerAvailable, 
     this.ngoProfileImage, // ADD THIS
+    this.description,
   });
 
   Map<String, dynamic> toMap() {
@@ -68,6 +70,7 @@ class NgoListingModel {
       'status': status,
       'isVolunteerAvailable': isVolunteerAvailable, 
       'ngoProfileImage': ngoProfileImage, // ADD THIS
+      'description': description, // <-- NEW
     };
   }
 
@@ -96,6 +99,7 @@ class NgoListingModel {
       status: map['status'] ?? 'open',
       isVolunteerAvailable: map['isVolunteerAvailable'] as bool?, 
       ngoProfileImage: map['ngoProfileImage'] as String?, // ADD THIS
+      description: map['description'] as String?, // <-- NEW
     );
   }
 }

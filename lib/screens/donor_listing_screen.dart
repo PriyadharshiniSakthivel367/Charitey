@@ -379,11 +379,13 @@ class _DonorListingScreenState extends State<DonorListingScreen> {
                 }
 
                 return ListView.builder(
-                  padding: const EdgeInsets.only(top: 10, bottom: 40, left: 20, right: 20),
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: listings.length,
-                  itemBuilder: (context, index) => buildUltraPremiumCard(listings[index], userRole),
-                );
+  // 👇 INCREASED BOTTOM PADDING TO 120 👇
+  padding: const EdgeInsets.only(top: 10, bottom: 120, left: 20, right: 20), 
+  physics: const BouncingScrollPhysics(),
+  itemCount: listings.length,
+  itemBuilder: (context, index) =>
+      buildUltraPremiumCard(listings[index], userRole),
+);
               },
             ),
           ),
@@ -542,31 +544,75 @@ class _DonorListingScreenState extends State<DonorListingScreen> {
             Divider(height: 1, thickness: 1, color: Colors.grey.shade100),
             const SizedBox(height: 16),
             
+           // 3. FOOTER: Date, Location, Description & Donate Button
             Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.start, // Changed to start so description flows down neatly
               children: [
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Date Row
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Icon(Icons.schedule_rounded, size: 16, color: Colors.grey.shade400),
                           const SizedBox(width: 6),
-                          Expanded(child: Text(requestDateTime, style: TextStyle(fontSize: 13, color: textSecondary, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                          Expanded(
+                            child: Text(
+                              requestDateTime,
+                              style: TextStyle(fontSize: 13, color: textSecondary, fontWeight: FontWeight.w600),
+                              maxLines: 2, // Allows wrapping so it never cuts off
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 8),
+                      
+                      // Location Row
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Icon(Icons.location_on_rounded, size: 16, color: Colors.grey.shade400),
                           const SizedBox(width: 6),
-                          Expanded(child: Text(listing.ngoLocation, style: TextStyle(fontSize: 13, color: textSecondary, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                          Expanded(
+                            child: Text(
+                              listing.ngoLocation,
+                              style: TextStyle(fontSize: 13, color: textSecondary, fontWeight: FontWeight.w600),
+                              maxLines: 2, // Allows wrapping so it never cuts off
+                            ),
+                          ),
                         ],
                       ),
+                      
+                      // 👇 Description Block (Now safely below the Location Row) 👇
+                      if (listing.description != null && listing.description!.trim().isNotEmpty) ...[
+                        const SizedBox(height: 14),
+                        Text(
+                          'Description:',
+                          style: TextStyle(
+                            fontSize: 12, 
+                            fontWeight: FontWeight.bold, 
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          listing.description!,
+                          style: TextStyle(
+                            fontSize: 13, 
+                            color: textSecondary, 
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                      // 👆 End Description Block 👆
+
                     ],
                   ),
                 ),
+                
+                // Donate Button
                 if (userRole != 'ngo') ...[
                   const SizedBox(width: 12),
                   SizedBox(

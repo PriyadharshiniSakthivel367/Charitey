@@ -22,6 +22,7 @@ class ChatService {
         receiverId: receiverId,
         message: message,
         timestamp: DateTime.now(),
+        delivered: false,
         read: false,
       );
 
@@ -99,10 +100,38 @@ class ChatService {
         .orderBy('timestamp', descending: false)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
+      List<MessageModel> messages = snapshot.docs
           .map((doc) => MessageModel.fromMap(doc.data(), doc.id))
           .toList();
+
+      // --- NEW: Read receipts, step 1 (delivered) ---
+      // userId1 is always the person currently viewing this stream (see how
+      // getMessages is called from ChatScreen: getMessages(user.uid, otherUserId)).
+      // The instant their device pulls this snapshot, any message addressed to
+      // them that isn't flagged "delivered" yet gets flagged now. Fire-and-forget
+      // so it never blocks rendering the message list.
+      _markDeliveredForViewer(chatRoomId, userId1, messages);
+
+      return messages;
     });
+  }
+
+  Future<void> _markDeliveredForViewer(String chatRoomId, String viewerId, List<MessageModel> messages) async {
+    try {
+      final undelivered = messages.where((m) => m.receiverId == viewerId && !m.delivered).toList();
+      if (undelivered.isEmpty) return;
+
+      WriteBatch batch = _firestore.batch();
+      for (var m in undelivered) {
+        batch.update(
+          _firestore.collection('chats').doc(chatRoomId).collection('messages').doc(m.messageId),
+          {'delivered': true},
+        );
+      }
+      await batch.commit();
+    } catch (e) {
+      print('Error marking messages as delivered: $e');
+    }
   }
 
   Stream<List<ChatPreviewModel>> getChatInbox(String userId) {
@@ -115,5 +144,46 @@ class ChatService {
         .map((snapshot) => snapshot.docs
             .map((doc) => ChatPreviewModel.fromMap(doc.data(), doc.id))
             .toList());
+  }
+
+  // --- NEW: Read receipts, step 2 (read) ---
+  // Call this when the user actually opens/views a chat. It flips `read`
+  // (and `delivered`, in case it was somehow missed) to true on every
+  // message where they are the receiver, and clears the unread badge on
+  // their own inbox preview for this chat.
+  Future<void> markMessagesAsRead(String currentUserId, String otherUserId) async {
+    try {
+      String chatRoomId = getChatRoomId(currentUserId, otherUserId);
+
+      QuerySnapshot unreadMessages = await _firestore
+          .collection('chats')
+          .doc(chatRoomId)
+          .collection('messages')
+          .where('receiverId', isEqualTo: currentUserId)
+          .where('read', isEqualTo: false)
+          .get();
+
+      if (unreadMessages.docs.isEmpty) return;
+
+      WriteBatch batch = _firestore.batch();
+      for (var doc in unreadMessages.docs) {
+        batch.update(doc.reference, {'read': true, 'delivered': true});
+      }
+
+      // Also clear the "unread" badge on the reader's own inbox entry
+      batch.set(
+        _firestore
+            .collection('users')
+            .doc(currentUserId)
+            .collection('chat_previews')
+            .doc(chatRoomId),
+        {'hasUnread': false},
+        SetOptions(merge: true),
+      );
+
+      await batch.commit();
+    } catch (e) {
+      print('Error marking messages as read: $e');
+    }
   }
 }
