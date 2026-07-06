@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'travel_agency_register_screen.dart'; 
 import 'home_screen.dart';
+import 'forgot_password_screen.dart';
+
 
 class TravelAgencyLoginScreen extends StatefulWidget {
   const TravelAgencyLoginScreen({super.key});
@@ -148,13 +150,20 @@ class _TravelAgencyLoginScreenState extends State<TravelAgencyLoginScreen> {
                           const SizedBox(height: 12),
 
                           Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: () {
-                                // Forgot password logic placeholder
-                              },
-                              child: Text(
-                                'Forget Password?',
+  alignment: Alignment.centerRight,
+  child: TextButton(
+    onPressed: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ForgotPasswordScreen(
+            prefillEmail: _emailController.text.trim(),
+          ),
+        ),
+      );
+    },
+    child: Text(
+      'Forget Password?',
                                 style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w600, fontSize: 14),
                               ),
                             ),

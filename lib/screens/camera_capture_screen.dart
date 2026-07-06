@@ -1,5 +1,7 @@
+//camera_capture_screen.dart
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb; // NEW - to branch web vs mobile preview rendering
 import 'package:camera/camera.dart';
 import 'dart:async'; // NEW - for Timer
 
@@ -73,7 +75,12 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
     final newController = CameraController(
       description,
       ResolutionPreset.high,
-      enableAudio: true,
+      // FIX: audio track requests on web can trigger a second permission
+      // prompt (mic) that silently fails/hangs on some browsers if the user
+      // never responds to it, which was leaving the whole controller stuck
+      // mid-initialization and the preview black. Only request audio on
+      // native platforms where the video-recording flow actually needs it.
+      enableAudio: !kIsWeb,
     );
 
     try {
@@ -208,12 +215,27 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
     super.dispose();
   }
 
-  // FIX: OverflowBox + FittedBox(cover) crops to fill the portrait screen
-  // correctly instead of squishing/letterboxing. Camera sensors report
-  // previewSize in landscape orientation, so width/height are swapped here
-  // for portrait display.
+  // FIX: CameraPreview on Flutter Web is backed by a real HTML <video>
+  // element (a platform view), not a Skia texture like on mobile. Platform
+  // views on web do NOT reliably render inside nested OverflowBox/FittedBox/
+  // SizedBox transform tricks — the <video> element ends up sized to 0,
+  // hidden, or stuck showing a stale frame, which is exactly the black
+  // preview you were seeing. So on web we skip the crop-to-fill trick
+  // entirely and just show the preview at its native aspect ratio, centered.
+  // On mobile (native texture-based preview) the crop-to-fill still works
+  // fine and looks better full-bleed, so that path is unchanged.
   Widget _buildFullScreenPreview() {
     final controller = _controller!;
+
+    if (kIsWeb) {
+      return Center(
+        child: AspectRatio(
+          aspectRatio: controller.value.aspectRatio,
+          child: CameraPreview(controller),
+        ),
+      );
+    }
+
     final previewSize = controller.value.previewSize;
     if (previewSize == null) return CameraPreview(controller);
 
