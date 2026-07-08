@@ -50,14 +50,14 @@ class FirestoreService {
           var docs = snapshot.docs
               .map((doc) => NgoListingModel.fromMap(doc.data(), doc.id))
               .toList();
-          
+
           // Client side descending date ordering
           docs.sort((a, b) {
             final dateA = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
             final dateB = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
             return dateB.compareTo(dateA);
           });
-          
+
           return docs;
         });
   }
@@ -82,27 +82,27 @@ class FirestoreService {
   Future<void> processDonation({
     required DonationModel donation,
     required NotificationModel notification,
-  }) async { 
+  }) async {
     try {
       // One single comprehensive transaction handles all data interactions securely
-      await _firestore.runTransaction((transaction) async { 
+      await _firestore.runTransaction((transaction) async {
         // Document References
-        DocumentReference listingRef = _firestore.collection('ngo_listings').doc(donation.listingId); 
-        DocumentReference donationRef = _firestore.collection('donations').doc(donation.donationId); 
-        DocumentReference notificationRef = _firestore.collection('notifications').doc(notification.id); 
+        DocumentReference listingRef = _firestore.collection('ngo_listings').doc(donation.listingId);
+        DocumentReference donationRef = _firestore.collection('donations').doc(donation.donationId);
+        DocumentReference notificationRef = _firestore.collection('notifications').doc(notification.id);
 
         // a. Read listing state within the safe window
-        DocumentSnapshot listingSnapshot = await transaction.get(listingRef); 
-        if (!listingSnapshot.exists) { 
-          throw Exception("Listing does not exist!"); 
+        DocumentSnapshot listingSnapshot = await transaction.get(listingRef);
+        if (!listingSnapshot.exists) {
+          throw Exception("Listing does not exist!");
         }
 
         final data = listingSnapshot.data() as Map<String, dynamic>;
-        
+
         // Safe extraction of status to prevent missing property errors
-        String currentStatus = data['status'] ?? 'open'; 
-        if (currentStatus == 'closed') { 
-          throw Exception("This request has already been fulfilled."); 
+        String currentStatus = data['status'] ?? 'open';
+        if (currentStatus == 'closed') {
+          throw Exception("This request has already been fulfilled.");
         }
 
         // b. Calculate fulfillment quantities handling safe num -> int evaluations
@@ -128,26 +128,26 @@ class FirestoreService {
         });
 
         // d. Write: Create donation record
-        transaction.set(donationRef, donation.toMap()); 
+        transaction.set(donationRef, donation.toMap());
 
         // e. Write: Auto-create a volunteer request for this donation
-        DocumentReference volunteerRequestRef = _firestore.collection('volunteer_requests').doc(); 
-        VolunteerRequestModel vRequest = VolunteerRequestModel( 
-          requestId: volunteerRequestRef.id, 
-          ngoId: donation.ngoId, 
-          donorId: donation.donorId, 
-          listingId: donation.listingId, 
-          status: 'pending', 
-          createdAt: DateTime.now(), 
+        DocumentReference volunteerRequestRef = _firestore.collection('volunteer_requests').doc();
+        VolunteerRequestModel vRequest = VolunteerRequestModel(
+          requestId: volunteerRequestRef.id,
+          ngoId: donation.ngoId,
+          donorId: donation.donorId,
+          listingId: donation.listingId,
+          status: 'pending',
+          createdAt: DateTime.now(),
         );
-        transaction.set(volunteerRequestRef, vRequest.toMap()); 
+        transaction.set(volunteerRequestRef, vRequest.toMap());
 
         // f. Write: Create notification record inside the transaction execution block
-        transaction.set(notificationRef, notification.toMap()); 
+        transaction.set(notificationRef, notification.toMap());
       });
-    } catch (e) { 
-      print('Error processing transactional donation: $e'); 
-      rethrow; 
+    } catch (e) {
+      print('Error processing transactional donation: $e');
+      rethrow;
     }
   }
 
@@ -225,7 +225,7 @@ class FirestoreService {
   }
 
   // ==========================================
-  // --- ⚙️ NEW: LAZY EXPIRATION CLEANUP ENGINE ---
+  // --- ⚙️ LAZY EXPIRATION CLEANUP ENGINE ---
   // ==========================================
 
   // This automatically runs in the background when the NGO opens the app
@@ -240,18 +240,18 @@ class FirestoreService {
 
       for (var doc in openRequests.docs) {
         var data = doc.data() as Map<String, dynamic>;
-        
+
         // Safely extract the expiration date
         Timestamp? liveUntilTimestamp = data['liveUntil'] as Timestamp?;
         if (liveUntilTimestamp == null) continue;
-        
+
         DateTime liveUntil = liveUntilTimestamp.toDate();
-        
+
         // 2. Check if the deadline has passed compared to RIGHT NOW
         if (liveUntil.isBefore(DateTime.now())) {
           int totalQty = (data['quantity'] as num?)?.toInt() ?? 0;
           int fulfilledQty = (data['fulfilledQuantity'] as num?)?.toInt() ?? 0;
-          
+
           // Math Check: Calculate Pending Quantity
           int pendingQty = totalQty - fulfilledQty;
 
@@ -263,14 +263,14 @@ class FirestoreService {
 
           // 4. Send Notification ONLY if there are pending items left to donate
           if (pendingQty > 0) {
-            String itemName = data['type'] == 'food' 
-                ? (data['foodType'] ?? 'Food items') 
+            String itemName = data['type'] == 'food'
+                ? (data['foodType'] ?? 'Food items')
                 : (data['productName'] ?? 'Products');
-                
+
             String message = "Your requested time is out. Out of $totalQty $itemName, $pendingQty are still pending. Please create a new request.";
 
             String notifId = _firestore.collection('notifications').doc().id;
-            
+
             NotificationModel expiredNotif = NotificationModel(
               id: notifId,
               receiverId: currentNgoId,
@@ -293,6 +293,23 @@ class FirestoreService {
       }
     } catch (e) {
       print("Error running lazy cleanup: $e");
+    }
+  }
+
+  // ==========================================
+  // --- FEEDBACK LOGIC ---
+  // ==========================================
+
+  // Save a user's feedback survey answers to Firestore.
+  // Called from FeedbackScreen (home_screen.dart) with a map like:
+  // { userId, userName, userEmail, userRole, q1_notifications, q2_settings,
+  //   q3_recommend, q4_ngo_info, q5_support, submittedAt }
+  Future<void> submitFeedback(Map<String, dynamic> feedbackData) async {
+    try {
+      await _firestore.collection('feedback').add(feedbackData);
+    } catch (e) {
+      print('Error submitting feedback: $e');
+      rethrow;
     }
   }
 }

@@ -318,25 +318,20 @@ class ChatService {
 static const String _cloudinaryCloudName = 'dn3crlxzz'; 
 static const String _cloudinaryUploadPreset = 'yzl8jb6z'; // e.g. 'chat_media_unsigned'
 
-Future<String> uploadChatMedia(Uint8List bytes, String chatRoomId, String fileName, {String type = 'document'}) async {
-  // NEW: route to the correct resource type instead of always using 'auto'.
-  // 'auto' sometimes drops the original extension for non-image/video files,
-  // which is exactly what caused files to download/share as generic .bin
-  final resourceType = type == 'image' ? 'image' : (type == 'video' ? 'video' : 'raw');
-  final uri = Uri.parse('https://api.cloudinary.com/v1_1/$_cloudinaryCloudName/$resourceType/upload');
+Future<String> uploadChatMedia(Uint8List bytes, String chatRoomId, String fileName) async {
+  final uri = Uri.parse('https://api.cloudinary.com/v1_1/$_cloudinaryCloudName/auto/upload');
 
   final request = http.MultipartRequest('POST', uri)
     ..fields['upload_preset'] = _cloudinaryUploadPreset
     ..fields['folder'] = 'chat_media/$chatRoomId'
-    // NOTE: 'use_filename' / 'unique_filename' are NOT allowed on unsigned
-    // uploads (Cloudinary rejects them with a 400). The 'filename' parameter
-    // passed to MultipartFile.fromBytes below is enough — Cloudinary still
-    // reads the extension from it correctly for image/video/raw resource types.
     ..files.add(http.MultipartFile.fromBytes('file', bytes, filename: fileName));
 
+  // NEW: longer timeout, scaled by file size (videos need more time)
+  final timeoutSeconds = bytes.length > 5 * 1024 * 1024 ? 120 : 30;
+
   final streamedResponse = await request.send().timeout(
-    const Duration(seconds: 30),
-    onTimeout: () => throw Exception('Upload timed out — check Cloudinary preset/cloud name'),
+    Duration(seconds: timeoutSeconds),
+    onTimeout: () => throw Exception('Upload timed out — file may be too large or connection too slow'),
   );
   final response = await http.Response.fromStream(streamedResponse);
 
@@ -369,7 +364,7 @@ Future<void> sendMediaMessage({
   final chatRoomId = getChatRoomId(senderId, receiverId);
   final fileSize = bytes.length;
 
-  final url = await uploadChatMedia(bytes, chatRoomId, fileName, type: type);
+  final url = await uploadChatMedia(bytes, chatRoomId, fileName);
 
   final defaultText = type == 'image'
       ? '[Image]'

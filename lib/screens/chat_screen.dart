@@ -8,7 +8,6 @@ import '../providers/auth_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart'; 
 import 'package:image_picker/image_picker.dart';
-import 'package:file_picker/file_picker.dart';
 import 'dart:typed_data'; // NEW
 import 'camera_capture_screen.dart';
 import 'package:intl/intl.dart';
@@ -22,6 +21,7 @@ import 'package:gal/gal.dart'; // NEW - save to gallery
 import 'package:mime/mime.dart'; // NEW - correct MIME detection
 import 'video_viewer_screen.dart'; // NEW
 import 'media_preview_screen.dart'; // NEW
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class ChatScreen extends StatefulWidget {
   final String otherUserId;
@@ -46,6 +46,7 @@ class ChatScreenState extends State<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   final ImagePicker _picker = ImagePicker();
   bool _isUploading = false;
+  bool _hasScrolledToBottomOnce = false; // NEW: only auto-jump on initial chat open
   MessageModel? _replyingTo;          // NEW
   bool _isBlockedByMe = false;        // NEW
   bool _amIBlockedByThem = false;     // NEW
@@ -74,6 +75,22 @@ class ChatScreenState extends State<ChatScreen> {
     final user = Provider.of<AuthProvider>(context, listen: false).currentUserModel;
     if (user == null) return;
     _chatService.markMessagesAsRead(user.uid, widget.otherUserId);
+  }
+
+  // NEW: jumps the list to the latest message (bottom), since messages are
+  // ordered oldest → newest and ListView.builder defaults to showing the top.
+  void _scrollToBottom({bool animate = false}) {
+    if (!_scrollController.hasClients) return;
+    final maxExtent = _scrollController.position.maxScrollExtent;
+    if (animate) {
+      _scrollController.animateTo(
+        maxExtent,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    } else {
+      _scrollController.jumpTo(maxExtent);
+    }
   }
 
   void sendMessage() async {
@@ -128,14 +145,21 @@ class ChatScreenState extends State<ChatScreen> {
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
-    builder: (context) => SafeArea(
+    builder: (sheetContext) => SafeArea(
       child: Wrap(
         children: [
           ListTile(
   leading: Icon(Icons.photo_camera, color: themeColor),
   title: const Text('Camera'),
   onTap: () async {
-    Navigator.pop(context);
+    // FIX: `sheetContext` belongs to the bottom sheet itself and is torn
+    // down the instant we pop it below. Using it for navigation afterwards
+    // (once the camera screen returns, seconds later) threw a null-check
+    // crash inside Navigator.of — which silently killed the flow right
+    // before the caption/preview screen could open. We now close the sheet
+    // with `sheetContext`, but do every subsequent push with this State's
+    // own long-lived `context`.
+    Navigator.pop(sheetContext);
     final CaptureResult? result = await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const CameraCaptureScreen()),
@@ -162,16 +186,8 @@ class ChatScreenState extends State<ChatScreen> {
             leading: Icon(Icons.photo_library, color: themeColor),
             title: const Text('Gallery'),
             onTap: () {
-              Navigator.pop(context);
+              Navigator.pop(sheetContext);
               _pickAndSendImage(ImageSource.gallery);
-            },
-          ),
-          ListTile(
-            leading: Icon(Icons.insert_drive_file, color: themeColor),
-            title: const Text('Document'),
-            onTap: () {
-              Navigator.pop(context);
-              _pickAndSendDocument();
             },
           ),
         ],
@@ -279,63 +295,6 @@ Future<void> _sendVideoBytes(Uint8List bytes, String fileName, {String? caption}
   }
 }
 
-Future<void> _pickAndSendDocument() async {
-  final user = Provider.of<AuthProvider>(context, listen: false).currentUserModel;
-  if (user == null) return;
-
-  final result = await FilePicker.platform.pickFiles(withData: true);
-  if (result == null || result.files.single.bytes == null) return;
-
-  final platformFile = result.files.single;
-
-  final caption = await Navigator.push<String?>( // NEW: preview screen before sending
-    context,
-    MaterialPageRoute(
-      builder: (_) => MediaPreviewScreen(bytes: platformFile.bytes!, type: 'document', fileName: platformFile.name),
-    ),
-  );
-  if (caption == null) return; // cancelled
-
-  final replyMsg = _replyingTo;
-  setState(() {
-    _isUploading = true;
-    _replyingTo = null;
-  });
-  try {
-    await _chatService.sendMediaMessage(
-      bytes: platformFile.bytes!,
-      fileName: platformFile.name,
-      senderId: user.uid,
-      senderName: user.name,
-      receiverId: widget.otherUserId,
-      receiverName: widget.otherUserName,
-      type: 'document',
-      caption: caption, // NEW
-      senderPhone: user.phone,
-      senderLocation: user.location,
-      senderRole: user.role,
-      replyToId: replyMsg?.messageId,
-      replyToMessage: replyMsg == null
-          ? null
-          : (replyMsg.type == 'text'
-              ? replyMsg.message
-              : replyMsg.type == 'image'
-                  ? '📷 Photo'
-                  : replyMsg.type == 'video'
-                      ? '🎥 Video'
-                      : '📄 ${replyMsg.fileName}'),
-      replyToSenderName: replyMsg?.senderId == user.uid ? 'You' : widget.otherUserName,
-      replyToType: replyMsg?.type,
-    );
-  } catch (e) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to send document: $e')));
-    }
-  } finally {
-    if (mounted) setState(() => _isUploading = false);
-  }
-}
-
 void _openFullImage(String url) {
   showDialog(
     context: context,
@@ -399,23 +358,65 @@ void _openFullImage(String url) {
     final user = Provider.of<AuthProvider>(context, listen: false).currentUserModel;
     if (user == null) return;
 
-    final action = _isBlockedByMe ? 'Unblock' : 'Block';
+    final bool isCurrentlyBlocked = _isBlockedByMe;
+    final action = isCurrentlyBlocked ? 'Unblock' : 'Block';
+
+    bool confirmChecked = false; // NEW: checkbox state, only relevant for Block flow
+
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text('$action ${widget.otherUserName}?'),
-        content: Text(_isBlockedByMe
-            ? 'They will be able to message you again.'
-            : 'They will no longer be able to send you messages.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: Text(action)),
-        ],
+      builder: (dialogContext) => StatefulBuilder( // NEW: lets checkbox rebuild the dialog
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: Text('$action ${widget.otherUserName}?'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(isCurrentlyBlocked
+                  ? 'They will be able to message you again.'
+                  : 'They will no longer be able to send you messages, and you won\'t receive messages from them.'),
+              if (!isCurrentlyBlocked) ...[ // NEW: checkbox only shown when blocking, not unblocking
+                const SizedBox(height: 12),
+                InkWell(
+                  onTap: () => setDialogState(() => confirmChecked = !confirmChecked),
+                  child: Row(
+                    children: [
+                      Checkbox(
+                        value: confirmChecked,
+                        onChanged: (val) => setDialogState(() => confirmChecked = val ?? false),
+                        activeColor: themeColor,
+                      ),
+                      Expanded(
+                        child: Text(
+                          'I confirm I want to block ${widget.otherUserName}.',
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              // NEW: disabled until checkbox is ticked, but only for the Block flow
+              onPressed: (!isCurrentlyBlocked && !confirmChecked)
+                  ? null
+                  : () => Navigator.pop(dialogContext, true),
+              child: Text(action),
+            ),
+          ],
+        ),
       ),
     );
     if (confirmed != true) return;
 
-    if (_isBlockedByMe) {
+    if (isCurrentlyBlocked) {
       await _chatService.unblockUser(user.uid, widget.otherUserId);
     } else {
       await _chatService.blockUser(user.uid, widget.otherUserId);
@@ -452,38 +453,45 @@ void _openFullImage(String url) {
   // NEW: actually downloads bytes and saves them to the device correctly,
   // instead of just opening the URL in a browser tab.
   Future<void> _downloadFile(String url, String? fileName, String type) async {
-    try {
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode != 200) throw Exception('Server returned ${response.statusCode}');
-      final bytes = response.bodyBytes;
-      final safeName = fileName ?? 'file_${DateTime.now().millisecondsSinceEpoch}';
-
-      if (type == 'image') {
-        await Gal.putImageBytes(bytes, name: safeName);
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Image saved to gallery')));
-      } else if (type == 'video') {
-        // Gal needs a file path for video, so write to a temp file first
-        final tempDir = await getTemporaryDirectory();
-        final tempFile = File('${tempDir.path}/$safeName');
-        await tempFile.writeAsBytes(bytes);
-        await Gal.putVideo(tempFile.path);
-        await tempFile.delete();
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Video saved to gallery')));
-      } else {
-        // Documents: save into the app's document storage folder
-        final dir = await getApplicationDocumentsDirectory();
-        final file = File('${dir.path}/$safeName');
-        await file.writeAsBytes(bytes);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Saved: ${file.path}')));
-        }
+  try {
+    if (kIsWeb) {
+      // NEW: on web, just open the URL directly — browser handles download/view natively
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
       }
-    } catch (e) {
+      return;
+    }
+
+    final response = await http.get(Uri.parse(url));
+    if (response.statusCode != 200) throw Exception('Server returned ${response.statusCode}');
+    final bytes = response.bodyBytes;
+    final safeName = fileName ?? 'file_${DateTime.now().millisecondsSinceEpoch}';
+
+    if (type == 'image') {
+      await Gal.putImageBytes(bytes, name: safeName);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Image saved to gallery')));
+    } else if (type == 'video') {
+      final tempDir = await getTemporaryDirectory();
+      final tempFile = File('${tempDir.path}/$safeName');
+      await tempFile.writeAsBytes(bytes);
+      await Gal.putVideo(tempFile.path);
+      await tempFile.delete();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Video saved to gallery')));
+    } else {
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File('${dir.path}/$safeName');
+      await file.writeAsBytes(bytes);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Download failed: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Saved: ${file.path}')));
       }
     }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Download failed: $e')));
+    }
   }
+}
 
   Future<void> _shareMedia(String url, String? fileName) async {
     try {
@@ -643,6 +651,15 @@ void _openFullImage(String url) {
                     // since markMessagesAsRead only touches unread docs.
                     if (messages.isNotEmpty) {
                       WidgetsBinding.instance.addPostFrameCallback((_) => _markAsRead());
+
+                      // NEW: jump straight to the newest message the very first
+                      // time this snapshot has content — i.e. right when the
+                      // chat screen opens — so the user lands at the latest
+                      // message instead of the very first one in the thread.
+                      if (!_hasScrolledToBottomOnce) {
+                        _hasScrolledToBottomOnce = true;
+                        WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+                      }
                     }
                     
                     return ListView.builder(

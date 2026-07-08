@@ -1,4 +1,3 @@
-//Nee ippo amcha code la logo image //mathiko safree!!
 //home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -20,6 +19,7 @@ import 'hero_page.dart';
 import 'notifications_screen.dart';
 import 'chat_screen.dart';
 import 'travel_agency_dashboard.dart';
+import 'volunteer_dashboard.dart'; // MERGED: from home_screen.dart
 
 // =========================================================================
 // 1. HOME SCREEN
@@ -48,6 +48,14 @@ class HomeScreenState extends State<HomeScreen> {
     super.initState();
     _currentIndex = widget.initialIndex;
     targetPostId  = widget.targetPostId;
+
+    // MERGED: from home_screen.dart — clean up expired NGO requests on load
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final user = Provider.of<AuthProvider>(context, listen: false).currentUserModel;
+      if (user != null && user.role == 'ngo') {
+        FirestoreService().cleanUpExpiredRequests(user.uid);
+      }
+    });
   }
 
   void switchTab(int index, {String? postId}) {
@@ -107,7 +115,24 @@ class HomeScreenState extends State<HomeScreen> {
         BottomNavigationBarItem(icon: Icon(Icons.person_rounded),          label: 'Profile'),
       ];
     }
-    // --- 3. DONOR / VOLUNTEER ROLE (Default) ---
+    // --- 3. VOLUNTEER ROLE --- MERGED: from home_screen.dart
+    else if (user.role == 'volunteer') {
+      screens = [
+        const HeroPage(),
+        NgoDashboard(targetPostId: targetPostId),
+        const VolunteerDashboard(),
+        const ChatListScreen(),
+        const ProfileScreen(),
+      ];
+      navItems = const [
+        BottomNavigationBarItem(icon: Icon(Icons.home_rounded),              label: 'Home'),
+        BottomNavigationBarItem(icon: Icon(Icons.bar_chart_rounded),         label: 'Activity'),
+        BottomNavigationBarItem(icon: Icon(Icons.directions_car_rounded),    label: 'Tasks'),
+        BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_rounded),       label: 'Chat'),
+        BottomNavigationBarItem(icon: Icon(Icons.person_rounded),            label: 'Profile'),
+      ];
+    }
+    // --- 4. DONOR / VOLUNTEER ROLE (Default) ---
     else {
       screens = [
         const HeroPage(),
@@ -833,6 +858,8 @@ class AboutUsScreen extends StatelessWidget {
 }
 
 // ── Feedback Screen ────────────────────────────────────────────────────────
+// MERGED: real Firestore submission logic (from home_screen.dart) added
+// on top of home_screen1.dart's question UI — nothing visual removed.
 
 class FeedbackScreen extends StatefulWidget {
   const FeedbackScreen({super.key});
@@ -845,6 +872,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
   Map<int, int> answers = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
   final Color themeColor = const Color(0xFF7D444C);
   final Color cardColor  = const Color(0xFFFFF0F1);
+  bool _isSubmitting = false; // MERGED: from home_screen.dart
 
   @override
   Widget build(BuildContext context) {
@@ -862,6 +890,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
+        physics: const BouncingScrollPhysics(),
         children: [
           _buildQuestion(1, "Q1. Are notifications relevant and timely?"),
           _buildQuestion(2, "Q2. Are settings easy to find?"),
@@ -870,29 +899,93 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
           _buildQuestion(5, "Q5. Was it easy to contact support?"),
           const SizedBox(height: 20),
           ElevatedButton(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                    content: const Text('Feedback Submitted!'),
-                    backgroundColor: themeColor),
-              );
-              Navigator.pop(context);
-            },
+            // MERGED: was a plain SnackBar-only submit in home_screen1.dart;
+            // now calls the real submission method from home_screen.dart.
+            onPressed: _isSubmitting ? null : _submitFeedback,
             style: ElevatedButton.styleFrom(
               backgroundColor: themeColor,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
             ),
-            child: const Text("Submit",
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold)),
+            child: _isSubmitting
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2),
+                  )
+                : const Text("Submit",
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold)),
           ),
         ],
       ),
     );
+  }
+
+  // MERGED: from home_screen.dart — validates, saves to Firestore, shows
+  // real success/error feedback instead of an unconditional SnackBar.
+  Future<void> _submitFeedback() async {
+    if (answers.values.contains(0)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please answer all 5 questions before submitting.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final user = authProvider.currentUserModel;
+
+      if (user == null) {
+        throw Exception("User not found. Please log in again.");
+      }
+
+      Map<String, dynamic> feedbackData = {
+        'userId': user.uid,
+        'userName': user.name,
+        'userEmail': user.email,
+        'userRole': user.role,
+        'q1_notifications': answers[1],
+        'q2_settings': answers[2],
+        'q3_recommend': answers[3],
+        'q4_ngo_info': answers[4],
+        'q5_support': answers[5],
+        'submittedAt': FieldValue.serverTimestamp(),
+      };
+
+      await FirestoreService().submitFeedback(feedbackData);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Feedback Submitted! Thank you.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to submit: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
   }
 
   Widget _buildQuestion(int qIndex, String question) {
@@ -914,23 +1007,28 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
             children: List.generate(5, (index) {
               int rating = index + 1;
               return GestureDetector(
+                behavior: HitTestBehavior.opaque,
                 onTap: () =>
                     setState(() => answers[qIndex] = rating),
-                child: Row(
-                  children: [
-                    Icon(
-                      answers[qIndex] == rating
-                          ? Icons.radio_button_checked
-                          : Icons.radio_button_unchecked,
-                      color: answers[qIndex] == rating
-                          ? themeColor
-                          : Colors.black54,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(rating.toString(),
-                        style: const TextStyle(fontSize: 14)),
-                  ],
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 4.0, vertical: 8.0),
+                  child: Row(
+                    children: [
+                      Icon(
+                        answers[qIndex] == rating
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_unchecked,
+                        color: answers[qIndex] == rating
+                            ? themeColor
+                            : Colors.black54,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(rating.toString(),
+                          style: const TextStyle(fontSize: 14)),
+                    ],
+                  ),
                 ),
               );
             }),

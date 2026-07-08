@@ -19,16 +19,16 @@ class CreateListingScreen extends StatefulWidget {
 
 class CreateListingScreenState extends State<CreateListingScreen> {
   final FirestoreService firestoreService = FirestoreService();
-  
+
   String _listingType = 'food';
   bool _isStep1 = true; // Controls Progressive Disclosure (The "Next" logic)
-  
+
   // Volunteer Availability State
   bool? _isVolunteerAvailable;
 
   final TextEditingController _foodTypeController = TextEditingController();
   final TextEditingController _quantityController = TextEditingController();
-  
+
   // Dedicated units for separate listing branches
   String _foodUnit = 'kg';
   String _productUnit = 'items';
@@ -36,8 +36,8 @@ class CreateListingScreenState extends State<CreateListingScreen> {
   final TextEditingController _categoryController = TextEditingController();
   final TextEditingController _productNameController = TextEditingController();
   final TextEditingController _availabilityController = TextEditingController();
-  final TextEditingController _descriptionController = TextEditingController();  // <-- ADD THIS LINE
-  
+  final TextEditingController _descriptionController = TextEditingController();
+
   bool _isLoading = false;
   final Color themeColor = const Color(0xFF7D444C); // App Theme Color
 
@@ -59,7 +59,7 @@ class CreateListingScreenState extends State<CreateListingScreen> {
     _categoryController.dispose();
     _productNameController.dispose();
     _availabilityController.dispose();
-    _descriptionController.dispose(); // <-- ADD THIS LINE
+    _descriptionController.dispose();
     super.dispose();
   }
 
@@ -161,12 +161,12 @@ class CreateListingScreenState extends State<CreateListingScreen> {
       );
       return;
     }
-   if (_isVolunteerAvailable != true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('You must confirm volunteer availability to publish this request.')),
-        );
-        return;
-      }
+    if (_isVolunteerAvailable != true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You must confirm volunteer availability to publish this request.')),
+      );
+      return;
+    }
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final user = authProvider.currentUserModel;
@@ -178,42 +178,42 @@ class CreateListingScreenState extends State<CreateListingScreen> {
       String listingId = FirebaseFirestore.instance.collection('ngo_listings').doc().id;
       final selectedText = _availabilityController.text.trim();
 
-final parts = selectedText.split(' ');
-final datePart = parts[0]; // dd-MM-yyyy
-final timePart = "${parts[1]} ${parts[2]}"; // hh:mm AM/PM
+      final parts = selectedText.split(' ');
+      final datePart = parts[0]; // dd-MM-yyyy
+      final timePart = "${parts[1]} ${parts[2]}"; // hh:mm AM/PM
 
-final datePieces = datePart.split('-');
+      final datePieces = datePart.split('-');
 
-final day = int.parse(datePieces[0]);
-final month = int.parse(datePieces[1]);
-final year = int.parse(datePieces[2]);
+      final day = int.parse(datePieces[0]);
+      final month = int.parse(datePieces[1]);
+      final year = int.parse(datePieces[2]);
 
-final parsedTime = TimeOfDay(
-  hour: TimeOfDay(
-    hour: int.parse(timePart.split(':')[0]),
-    minute: int.parse(
-      timePart.split(':')[1].split(' ')[0],
-    ),
-  ).hour,
-  minute: int.parse(
-    timePart.split(':')[1].split(' ')[0],
-  ),
-);
+      final parsedTime = TimeOfDay(
+        hour: TimeOfDay(
+          hour: int.parse(timePart.split(':')[0]),
+          minute: int.parse(
+            timePart.split(':')[1].split(' ')[0],
+          ),
+        ).hour,
+        minute: int.parse(
+          timePart.split(':')[1].split(' ')[0],
+        ),
+      );
 
-DateTime selectedDateTime = DateTime(
-  year,
-  month,
-  day,
-  parsedTime.hour,
-  parsedTime.minute,
-);
+      DateTime selectedDateTime = DateTime(
+        year,
+        month,
+        day,
+        parsedTime.hour,
+        parsedTime.minute,
+      );
 
       NgoListingModel newListing = NgoListingModel(
         listingId: listingId,
         ngoId: user.uid,
         ngoName: user.name,
         ngoLocation: user.location,
-        ngoProfileImage: user.profileImage, // Image
+        ngoProfileImage: user.profileImage,
         type: _listingType,
         imageUrl: null, // Image feature removed completely
         foodType: _listingType == 'food' ? _foodTypeController.text.trim() : null,
@@ -226,7 +226,7 @@ DateTime selectedDateTime = DateTime(
         createdAt: DateTime.now(),
         status: 'open',
         isVolunteerAvailable: _isVolunteerAvailable,
-        description: _descriptionController.text.trim().isNotEmpty ? _descriptionController.text.trim() : null, // <-- ADD THIS LINE
+        description: _descriptionController.text.trim().isNotEmpty ? _descriptionController.text.trim() : null,
       );
 
       await firestoreService.createNgoListing(newListing);
@@ -288,14 +288,13 @@ DateTime selectedDateTime = DateTime(
           TextEditingController fieldTextEditingController,
           FocusNode fieldFocusNode,
           VoidCallback onFieldSubmitted) {
-        
         return TextFormField(
           controller: fieldTextEditingController,
           focusNode: fieldFocusNode,
           enabled: isEnabled,
           style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87),
           onChanged: (value) {
-            controller.text = value; 
+            controller.text = value;
           },
           decoration: InputDecoration(
             hintText: hintText,
@@ -331,7 +330,7 @@ DateTime selectedDateTime = DateTime(
             shadowColor: themeColor.withOpacity(0.2),
             borderRadius: BorderRadius.circular(16),
             child: Container(
-              width: MediaQuery.of(context).size.width - 64, 
+              width: MediaQuery.of(context).size.width - 64,
               constraints: const BoxConstraints(maxHeight: 220),
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -521,9 +520,9 @@ DateTime selectedDateTime = DateTime(
                               ],
                             ),
                           ),
-                          
+
                           const SizedBox(height: 30),
-                          
+
                           if (_listingType == 'food') ...[
                             _buildAutocompleteField(
                               controller: _foodTypeController,
@@ -556,9 +555,9 @@ DateTime selectedDateTime = DateTime(
                               isEnabled: _isStep1,
                             ),
                           ],
-                          
+
                           const SizedBox(height: 25),
-                          
+
                           if (_isStep1)
                             SizedBox(
                               width: double.infinity,
@@ -577,7 +576,7 @@ DateTime selectedDateTime = DateTime(
                                 ),
                               ),
                             ),
-                          
+
                           AnimatedSize(
                             duration: const Duration(milliseconds: 400),
                             curve: Curves.fastOutSlowIn,
@@ -591,7 +590,7 @@ DateTime selectedDateTime = DateTime(
                                         child: TextButton.icon(
                                           onPressed: () {
                                             setState(() {
-                                              _isStep1 = true; 
+                                              _isStep1 = true;
                                             });
                                           },
                                           icon: Icon(Icons.edit_rounded, size: 16, color: themeColor),
@@ -602,7 +601,7 @@ DateTime selectedDateTime = DateTime(
                                         ),
                                       ),
                                       const SizedBox(height: 5),
-                                      
+
                                       // Numeric text field and context-adaptive dropdown row
                                       Row(
                                         children: [
@@ -660,7 +659,7 @@ DateTime selectedDateTime = DateTime(
                                         ],
                                       ),
                                       const SizedBox(height: 16),
-                                      
+
                                       TextFormField(
                                         controller: _availabilityController,
                                         readOnly: true,
@@ -687,31 +686,29 @@ DateTime selectedDateTime = DateTime(
                                           ),
                                         ),
                                       ),
-                                      
+
                                       const SizedBox(height: 24),
-                                      // 👇 ADD THIS NEW DESCRIPTION FIELD 👇
-TextFormField(
-  controller: _descriptionController,
-  maxLines: 3,
-  style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87),
-  decoration: InputDecoration(
-    hintText: "Add details or description (Optional)",
-    hintStyle: TextStyle(color: Colors.grey.shade400, fontWeight: FontWeight.w500),
-    filled: true,
-    fillColor: Colors.grey.shade50,
-    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-    border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(16), 
-      borderSide: BorderSide(color: themeColor.withOpacity(0.5), width: 1.5)
-    ),
-  ),
-),
-const SizedBox(height: 24),
-// 👆 END NEW DESCRIPTION FIELD 👆
-                                      
-                                      // 1. Enhanced Header
+                                      TextFormField(
+                                        controller: _descriptionController,
+                                        maxLines: 3,
+                                        style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87),
+                                        decoration: InputDecoration(
+                                          hintText: "Add details or description (Optional)",
+                                          hintStyle: TextStyle(color: Colors.grey.shade400, fontWeight: FontWeight.w500),
+                                          filled: true,
+                                          fillColor: Colors.grey.shade50,
+                                          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                                          focusedBorder: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(16),
+                                            borderSide: BorderSide(color: themeColor.withOpacity(0.5), width: 1.5),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 24),
+
+                                      // Volunteer Requirement Header
                                       Row(
                                         children: [
                                           Icon(Icons.info_outline_rounded, size: 18, color: themeColor),
@@ -728,11 +725,9 @@ const SizedBox(height: 24),
                                         style: TextStyle(fontSize: 13, color: Colors.grey.shade600, height: 1.5),
                                       ),
                                       const SizedBox(height: 16),
-                                      
-                                      
-                                      // 2. Premium Toggle Card
+
+                                      // Premium Toggle Card (confirm checkbox)
                                       GestureDetector(
-                                        // FIX: Properly toggles between true and false!
                                         onTap: () => setState(() => _isVolunteerAvailable = !(_isVolunteerAvailable ?? false)),
                                         child: AnimatedContainer(
                                           duration: const Duration(milliseconds: 250),
@@ -752,7 +747,6 @@ const SizedBox(height: 24),
                                           ),
                                           child: Row(
                                             children: [
-                                              // Custom Animated Checkbox
                                               AnimatedContainer(
                                                 duration: const Duration(milliseconds: 250),
                                                 height: 26,
@@ -799,7 +793,7 @@ const SizedBox(height: 24),
                                         ),
                                       ),
                                       const SizedBox(height: 45),
-                                      
+
                                       SizedBox(
                                         width: double.infinity,
                                         child: CustomButton(
